@@ -113,6 +113,7 @@ final class Migrations
                     label TEXT NOT NULL DEFAULT '',
                     value TEXT NOT NULL DEFAULT '',
                     unit TEXT NOT NULL DEFAULT '',
+                    on_home INTEGER NOT NULL DEFAULT 0,
                     position INTEGER NOT NULL DEFAULT 0
                 )");
                 $contact = Db::value("SELECT value FROM settings WHERE key = 'contact_email'");

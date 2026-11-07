@@ -100,7 +100,49 @@ final class Renderer
             $attrs = (string) preg_replace('/\shref="[^"]*"/', '', $m[1] . $m[3]);
             return '<a href="' . e(Media::url($media)) . '"' . rtrim($attrs) . '>';
         }, $html);
-        return $html;
+        // HelloAsso links written as {{HELLOASSO_DON_URL}}...: the addresses from Réglages.
+        $html = (string) preg_replace_callback('~href="(\{\{HELLOASSO_[A-Z_]+\}\})"~', function (array $m): string {
+            return 'href="' . e(self::href($m[1])) . '"';
+        }, $html);
+        $html = self::tables($html);
+        return KeyFigures::replaceIn($html);
+    }
+
+    /** A link address, with the HelloAsso placeholders replaced. */
+    public static function href(string $url): string
+    {
+        if ($url === '{{HELLOASSO_DON_URL}}') {
+            return Settings::donUrl();
+        }
+        if ($url === '{{HELLOASSO_ADHESION_URL}}') {
+            return Settings::adhesionUrl();
+        }
+        if ($url === '{{HELLOASSO_URL}}') {
+            return Settings::helloAssoUrl();
+        }
+        return $url;
+    }
+
+    /**
+     * Tables: the first row is the header row (the editor cannot mark one), and a wide table
+     * scrolls sideways inside its own box on a phone instead of widening the page.
+     */
+    public static function tables(string $html): string
+    {
+        if (stripos($html, '<table') === false) {
+            return $html;
+        }
+        return (string) preg_replace_callback('~<table>(.*?)</table>~s', function (array $m): string {
+            $inner = $m[1];
+            if (strpos($inner, '<th') === false) {
+                $inner = (string) preg_replace_callback('~<tr>(.*?)</tr>~s', function (array $row): string {
+                    return '<tr>' . str_replace(['<td>', '</td>'], ['<th scope="col">', '</th>'], $row[1]) . '</tr>';
+                }, $inner, 1);
+            } else {
+                $inner = str_replace('<th>', '<th scope="col">', $inner);
+            }
+            return '<div class="table-wrap" role="region" aria-label="Tableau" tabindex="0"><table>' . $inner . '</table></div>';
+        }, $html);
     }
 
     /** @param array<int,array<string,mixed>> $cards */
@@ -112,8 +154,8 @@ final class Renderer
         $html = '<ul class="block block-cards cards" role="list">';
         foreach ($cards as $card) {
             $media = self::media(isset($card['media_id']) ? (int) $card['media_id'] : null);
-            $url = (string) ($card['url'] ?? '');
-            $title = e((string) ($card['title'] ?? ''));
+            $url = self::href((string) ($card['url'] ?? ''));
+            $title = KeyFigures::replaceIn(e((string) ($card['title'] ?? '')));
             $html .= '<li class="card' . ($url !== '' ? ' card-link' : '') . '">';
             if ($media !== null && $media['kind'] === 'image') {
                 $html .= '<div class="card-image">' . self::img($media, '(min-width: 64rem) 22rem, (min-width: 40rem) 45vw, 100vw', '') . '</div>';
@@ -122,7 +164,7 @@ final class Renderer
             $html .= $url !== '' ? '<a href="' . e($url) . '">' . $title . '</a>' : $title;
             $html .= '</' . $headingTag . '>';
             if (!empty($card['text'])) {
-                $html .= '<p class="card-text">' . nl2br(e((string) $card['text']), false) . '</p>';
+                $html .= '<p class="card-text">' . nl2br(KeyFigures::replaceIn(e((string) $card['text'])), false) . '</p>';
             }
             $html .= '</div></li>';
         }

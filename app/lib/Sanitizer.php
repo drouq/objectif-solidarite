@@ -21,7 +21,25 @@ final class Sanitizer
         'li' => [],
         'blockquote' => [],
         'img' => ['src', 'alt', 'data-media-id'],
+        'table' => [],
+        'thead' => [],
+        'tbody' => [],
+        'tr' => [],
+        'th' => [],
+        'td' => [],
     ];
+
+    /** Table parts are kept only in their proper place: tag => allowed parents. */
+    private const TABLE_PARENTS = [
+        'thead' => ['table'],
+        'tbody' => ['table'],
+        'tr' => ['table', 'thead', 'tbody'],
+        'th' => ['tr'],
+        'td' => ['tr'],
+    ];
+
+    /** Link addresses replaced when the page is shown (HelloAsso links from Réglages). */
+    public const HREF_PLACEHOLDERS = ['{{HELLOASSO_DON_URL}}', '{{HELLOASSO_ADHESION_URL}}', '{{HELLOASSO_URL}}'];
 
     /** Tags converted to an allowed equivalent. */
     private const RENAME = [
@@ -40,7 +58,7 @@ final class Sanitizer
         'title', 'meta', 'link', 'base', 'video', 'audio', 'source', 'track', 'canvas', 'picture', 'map',
     ];
 
-    private const BLOCKS = ['p', 'h2', 'h3', 'ul', 'ol', 'blockquote', 'img'];
+    private const BLOCKS = ['p', 'h2', 'h3', 'ul', 'ol', 'blockquote', 'img', 'table'];
 
     public static function html(string $html): string
     {
@@ -73,6 +91,10 @@ final class Sanitizer
         foreach ($container->childNodes as $child) {
             $result .= $out->saveHTML($child);
         }
+        // Older libxml (PHP 7.3) writes "{{" in a link address as "%7B%7B": put the placeholders back.
+        foreach (self::HREF_PLACEHOLDERS as $placeholder) {
+            $result = str_ireplace('href="' . str_replace(['{', '}'], ['%7B', '%7D'], $placeholder) . '"', 'href="' . $placeholder . '"', $result);
+        }
         return trim($result);
     }
 
@@ -96,9 +118,15 @@ final class Sanitizer
             if (isset(self::RENAME[$tag])) {
                 $tag = self::RENAME[$tag];
             }
+            if ($tag === 'tfoot') {
+                $tag = 'tbody';
+            }
+            if (isset(self::TABLE_PARENTS[$tag]) && !in_array(strtolower($to->nodeName), self::TABLE_PARENTS[$tag], true)) {
+                $tag = 'span'; // a table part out of place: keep its content only
+            }
             if (!isset(self::ALLOWED[$tag])) {
                 // Unknown tag (span, div, font, o:p...): keep its content only.
-                if (in_array($tag, ['div', 'section', 'article', 'header', 'footer', 'table', 'tr'], true)
+                if (in_array($tag, ['div', 'section', 'article', 'header', 'footer'], true)
                     && $to->nodeName === 'div') {
                     // A block-level wrapper at top level becomes a paragraph boundary.
                     $p = $out->createElement('p');
@@ -173,6 +201,9 @@ final class Sanitizer
         if ($clean === '') {
             return null;
         }
+        if (in_array($clean, self::HREF_PLACEHOLDERS, true)) {
+            return $clean;
+        }
         if (preg_match('~^https?://[^/\s]~i', $clean) || preg_match('~^(mailto|tel):~i', $clean)) {
             return $href === $clean ? $href : $clean;
         }
@@ -224,7 +255,7 @@ final class Sanitizer
     /** Plain text version of rich text (for descriptions and excerpts). */
     public static function toText(string $html): string
     {
-        $html = (string) preg_replace('~<(br|/p|/h2|/h3|/li|/blockquote)\b[^>]*>~i', ' ', $html);
+        $html = (string) preg_replace('~<(br|/p|/h2|/h3|/li|/blockquote|/td|/th|/tr)\b[^>]*>~i', ' ', $html);
         $text = html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8');
         return trim((string) preg_replace('/\s+/u', ' ', $text));
     }

@@ -55,6 +55,16 @@ $fieldLabels = [
     <h2 class="section-title">Contenu</h2>
     <div id="block-editor" class="block-editor" aria-describedby="blocks-help"></div>
     <p id="blocks-help" class="help">Ajoutez des blocs de texte, des grilles de cartes ou des vidéos. Utilisez les flèches pour changer leur ordre.</p>
+    <details class="help-box">
+      <summary>Chiffres clés et liens HelloAsso dans le texte</summary>
+      <p>Pour afficher un chiffre clé (Réglages &gt; Chiffres clés), écrivez sa clé entre doubles accolades, par exemple <code>{{fig:<?= e($figureKeys ? $figureKeys[0] : 'cle') ?>}}</code>. Il est remplacé par la valeur à jour.</p>
+      <?php if ($figureKeys): ?>
+        <p>Clés disponibles : <?php foreach ($figureKeys as $i => $key): ?><?= $i > 0 ? ', ' : '' ?><code>{{fig:<?= e($key) ?>}}</code><?php endforeach; ?>.</p>
+      <?php else: ?>
+        <p>Aucun chiffre clé n'est encore défini.</p>
+      <?php endif; ?>
+      <p>Pour un lien vers HelloAsso, utilisez comme adresse <code>{{HELLOASSO_DON_URL}}</code> (don) ou <code>{{HELLOASSO_ADHESION_URL}}</code> (adhésion) : le lien suit les adresses des Réglages.</p>
+    </details>
     <script type="application/json" id="blocks-data"><?= json_encode($blocks, $jsonFlags) ?></script>
     <script type="application/json" id="media-data"><?= json_encode((object) $mediaJson, $jsonFlags) ?></script>
   </div>
@@ -72,6 +82,17 @@ $fieldLabels = [
         <?php endif; ?>
         <?= field_error($errors, 'status') ?>
       </fieldset>
+      <?php if ($markers): ?>
+      <div class="notice notice-warning marker-warning" role="status" id="marker-warning">
+        <p><strong>À revoir avant de publier :</strong> cette page contient encore <?= count($markers) ?> marque<?= count($markers) > 1 ? 's' : '' ?> de contenu à vérifier ou à compléter.</p>
+        <ul>
+          <?php foreach (array_slice(array_values(array_unique($markers)), 0, 30) as $marker): ?>
+            <li><?= e($marker) ?></li>
+          <?php endforeach; ?>
+        </ul>
+        <p class="help">Vous pouvez enregistrer quand même. Supprimez chaque marque une fois le point réglé.</p>
+      </div>
+      <?php endif; ?>
       <div class="button-row">
         <button type="submit" class="btn btn-primary">Enregistrer</button>
         <a class="btn btn-secondary" href="<?= e(Pages::path($page)) ?>" target="_blank" rel="noopener">Voir la page<span class="visually-hidden"> (nouvel onglet)</span></a>

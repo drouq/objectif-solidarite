@@ -523,6 +523,10 @@ foreach ($trackedFiles as $relative) {
 }
 check('tracked files list is not empty', count($trackedFiles) > 50, (string) count($trackedFiles));
 check('no name, domain or folder of the other site in tracked files', $leftovers === [], implode(', ', $leftovers));
+
+// ---------------------------------------------------------------------------
+// Content import, key figures, markers, tables (synthetic fixtures only, never the real package).
+require __DIR__ . '/import-tests.php';
 restore_error_handler();
 
 // ===========================================================================
@@ -668,6 +672,78 @@ try {
     check('old address 301', $old['status'] === 301 && $header($old, 'Location') === '/actions');
     check('menu shows page', strpos($request('GET', '/', [], false)['body'], '<a href="/actions"') !== false);
     check('sitemap lists page', strpos($request('GET', '/sitemap.xml', [], false)['body'], '/actions</loc>') !== false);
+
+    // Old website addresses (synthetic rows, as the content import writes them).
+    $siteDb = new PDO('sqlite:' . $site . '/data/site.sqlite');
+    $siteDb->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $actionsId = (int) $siteDb->query("SELECT id FROM pages WHERE slug = 'actions'")->fetchColumn();
+    $addOld = $siteDb->prepare("INSERT INTO old_paths (old_path, page_id, target_url, note, created_at) VALUES (?, ?, ?, '', '2026-11-07T00:00:00Z')");
+    foreach ([['/mafé', $actionsId, ''], ['/copie-de-mafé', $actionsId, ''], ['/_files/ugd/exemple.pdf', $actionsId, ''], ['/spip.php?article7', $actionsId, ''],
+              ['/contact-8', null, '{{HELLOASSO_URL}}'], ['/externe', null, 'https://www.helloasso.com/associations/exemple'], ['/retiree', null, '']] as $row) {
+        $addOld->execute($row);
+    }
+    $addOld = null;
+    $r = $request('GET', '/maf%C3%A9', [], false);
+    check('old accented address, encoded form: 301', $r['status'] === 301 && $header($r, 'Location') === '/actions', $r['status'] . ' ' . $header($r, 'Location'));
+    $r = $request('GET', '/copie-de-maf%C3%A9', [], false);
+    check('old accented address with hyphens: 301', $r['status'] === 301 && $header($r, 'Location') === '/actions');
+    // (The raw UTF-8 form "/mafé" is tested in import-tests.php: PHP's built-in server drops such request lines.)
+    check('old file path with slashes: 301', $request('GET', '/_files/ugd/exemple.pdf', [], false)['status'] === 301);
+    $r = $request('GET', '/spip.php?article7', [], false);
+    check('old path with a query string: 301', $r['status'] === 301 && $header($r, 'Location') === '/actions');
+    check('other query string is not matched', $request('GET', '/spip.php?article8', [], false)['status'] === 404);
+    $r = $request('GET', '/contact-8', [], false);
+    check('/contact-8 without HelloAsso address goes to "Nous aider"', $r['status'] === 301 && $header($r, 'Location') === '/nous-aider');
+    $siteDb->exec("INSERT OR REPLACE INTO settings (key, value) VALUES ('helloasso_url', 'https://www.helloasso.com/associations/exemple')");
+    $r = $request('GET', '/contact-8', [], false);
+    check('/contact-8 goes to the HelloAsso page (external 301)', $r['status'] === 301 && $header($r, 'Location') === 'https://www.helloasso.com/associations/exemple');
+    $r = $request('GET', '/externe', [], false);
+    check('external redirect target', $r['status'] === 301 && $header($r, 'Location') === 'https://www.helloasso.com/associations/exemple');
+    $r = $request('GET', '/retiree', [], false);
+    check('removed old page: friendly 404', $r['status'] === 404 && strpos($r['body'], 'Page introuvable') !== false);
+    check('HelloAsso address used by the buttons once set', strpos($request('GET', '/', [], false)['body'], 'href="https://www.helloasso.com/associations/exemple"') !== false);
+
+    // Key figures and tables on a public page, marker warning in the editor.
+    $siteDb->exec("INSERT INTO key_figures (fig_key, label, value, unit, on_home, position) VALUES ('frais_annee', 'Frais', '186,60', '€', 1, 1)");
+    $siteDb = null;
+    $editor = $request('GET', $editUrl);
+    preg_match('/name="loaded_updated_at" value="([^"]+)"/', $editor['body'], $um);
+    check('editor: no marker warning on a clean page', strpos($editor['body'], 'marker-warning') === false);
+    check('editor: key figure keys listed in the help', strpos($editor['body'], '{{fig:frais_annee}}') !== false);
+    $blocks = json_encode([['type' => 'text', 'html' => '<p>Frais : {{fig:frais_annee}}. Inconnu : [{{fig:absente}}].</p>'
+        . '<table><tbody><tr><td>Année</td><td>Montant</td></tr><tr><td>2025</td><td>10 €</td></tr></tbody></table>'
+        . '<p>Date [À VÉRIFIER : date exacte] et photo [À COMPLÉTER : photo].</p>']]);
+    $r = $request('POST', $editUrl, [
+        'csrf' => $token, 'title' => 'Nos actions', 'slug' => 'actions', 'status' => 'published', 'parent_id' => '',
+        'show_in_menu' => '1', 'seo_title' => '', 'seo_description' => 'Ce que nous faisons.', 'header_media_id' => '',
+        'blocks_json' => $blocks, 'loaded_updated_at' => $um[1] ?? '',
+    ]);
+    check('page with markers can still be saved', $r['status'] === 302, (string) $r['status']);
+    $editor = $request('GET', $editUrl);
+    check('editor: marker warning above the save buttons, listing the markers', preg_match('~id="marker-warning".*\[À VÉRIFIER : date exacte\].*\[À COMPLÉTER : photo\].*</div>\s*<div class="button-row">~s', $editor['body']) === 1);
+    $public = $request('GET', '/actions', [], false);
+    check('public page shows the key figure', strpos($public['body'], "Frais : 186,60\u{00A0}€.") !== false);
+    check('unknown key figure shows nothing', strpos($public['body'], 'Inconnu : [].') !== false);
+    check('table rendered with a header row', strpos($public['body'], '<th scope="col">Année</th>') !== false && strpos($public['body'], 'class="table-wrap"') !== false);
+    // Settings: key figures group
+    $settingsPage = $request('GET', '/admin/reglages');
+    check('settings: key figures group', strpos($settingsPage['body'], 'Chiffres clés') !== false && strpos($settingsPage['body'], 'value="frais_annee"') !== false);
+    $settingsForm = [
+        'csrf' => $token, 'site_name' => 'Objectif Solidarité', 'contact_email' => 'objectifsolidarite1@gmail.com',
+        'helloasso_url' => 'https://www.helloasso.com/associations/exemple',
+        'fig[0][key]' => 'frais_annee', 'fig[0][label]' => 'Frais', 'fig[0][value]' => '200', 'fig[0][unit]' => '€', 'fig[0][on_home]' => '1',
+        'fig[1][key]' => 'Clé Invalide', 'fig[1][value]' => '1',
+    ];
+    $r = $request('POST', '/admin/reglages', $settingsForm);
+    check('settings: bad figure key refused, nothing saved', $r['status'] === 200 && strpos($r['body'], 'invalide') !== false
+        && strpos($request('GET', '/actions', [], false)['body'], "186,60\u{00A0}€") !== false);
+    unset($settingsForm['fig[1][key]'], $settingsForm['fig[1][value]']);
+    $settingsForm['fig[1][key]'] = 'membres_annee';
+    $settingsForm['fig[1][value]'] = '67';
+    $r = $request('POST', '/admin/reglages', $settingsForm);
+    check('settings: figures saved', $r['status'] === 302 && strpos($request('GET', '/actions', [], false)['body'], "Frais : 200\u{00A0}€.") !== false);
+    $contentLog = $site . '/data/logs/content.log';
+    check('unknown key figure logged in content.log', is_file($contentLog) && strpos((string) file_get_contents($contentLog), '{{fig:absente}}') !== false);
 
     // Upload through the form (JSON, like the media picker)
     $upload = $request('POST', '/admin/medias?format=json', ['csrf' => $token, 'alt' => 'Une photo', 'file' => new CURLFile($work . '/new.jpg', 'image/jpeg', 'photo.jpg')], true, ['Accept: application/json']);

@@ -282,6 +282,12 @@ Quill.register(MediaImage, true);
 const icons = Quill.import('ui/icons');
 icons.btnlink = '<svg viewBox="0 0 18 18" aria-hidden="true"><rect x="1.5" y="5" width="15" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M5 9h8" stroke="currentColor" stroke-width="1.5"/></svg>';
 icons.pdf = '<svg viewBox="0 0 18 18" aria-hidden="true"><path d="M4 1.5h7l3 3v12H4z" fill="none" stroke="currentColor" stroke-width="1.4"/><text x="9" y="13" font-size="5" text-anchor="middle" fill="currentColor" font-family="sans-serif" font-weight="700">PDF</text></svg>';
+const tableIcon = (extra) => '<svg viewBox="0 0 18 18" aria-hidden="true"><rect x="2" y="3" width="14" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M2 7h14M7 7v8" stroke="currentColor" stroke-width="1.1"/>' + extra + '</svg>';
+icons.tableInsert = tableIcon('');
+icons.tableRowAdd = tableIcon('<path d="M11 11.5h4M13 9.5v4" stroke="currentColor" stroke-width="1.6"/>');
+icons.tableRowDelete = tableIcon('<path d="M11 11.5h4" stroke="currentColor" stroke-width="1.6"/>');
+icons.tableColAdd = tableIcon('<path d="M10 11h4M12 9v4" stroke="currentColor" stroke-width="1.6"/><path d="M12 3v3" stroke="currentColor" stroke-width="1.1"/>');
+icons.tableColDelete = tableIcon('<path d="M10 11h4" stroke="currentColor" stroke-width="1.6"/><path d="M12 3v3" stroke="currentColor" stroke-width="1.1"/>');
 icons.undo = '<svg viewBox="0 0 18 18" aria-hidden="true"><path d="M6 4 2.5 7.5 6 11" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M3 7.5h7.5a4 4 0 0 1 0 8H8" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>';
 icons.redo = '<svg viewBox="0 0 18 18" aria-hidden="true"><path d="m12 4 3.5 3.5L12 11" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M15 7.5H7.5a4 4 0 0 0 0 8H10" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>';
 
@@ -293,6 +299,11 @@ const TOOLBAR_LABELS = {
   'ql-blockquote': 'Citation',
   'ql-image': 'Image de la médiathèque',
   'ql-pdf': 'Lien vers un PDF de la médiathèque',
+  'ql-tableInsert': 'Insérer un tableau (la première ligne sert de titres)',
+  'ql-tableRowAdd': 'Ajouter une ligne au tableau',
+  'ql-tableRowDelete': 'Supprimer la ligne du tableau',
+  'ql-tableColAdd': 'Ajouter une colonne au tableau',
+  'ql-tableColDelete': 'Supprimer la colonne du tableau',
   'ql-undo': 'Annuler',
   'ql-redo': 'Rétablir',
 };
@@ -315,10 +326,12 @@ function createRichText(container, html) {
   container.appendChild(editorHost);
   const quill = new Quill(editorHost, {
     theme: 'snow',
-    formats: ['header', 'bold', 'italic', 'link', 'btnlink', 'list', 'blockquote', 'image'],
+    formats: ['header', 'bold', 'italic', 'link', 'btnlink', 'list', 'blockquote', 'image',
+      'table', 'table-row', 'table-body', 'table-container'],
     placeholder: 'Écrivez votre texte ici…',
     modules: {
       history: { delay: 800, maxStack: 200, userOnly: true },
+      table: true,
       toolbar: {
         container: [
           [{ header: [2, 3, false] }],
@@ -326,6 +339,7 @@ function createRichText(container, html) {
           ['link', 'btnlink'],
           [{ list: 'ordered' }, { list: 'bullet' }],
           ['blockquote', 'image', 'pdf'],
+          ['tableInsert', 'tableRowAdd', 'tableRowDelete', 'tableColAdd', 'tableColDelete'],
           ['undo', 'redo'],
         ],
         handlers: {
@@ -376,6 +390,11 @@ function createRichText(container, html) {
               }
             }, opener);
           },
+          tableInsert() { this.quill.getModule('table').insertTable(3, 3); },
+          tableRowAdd() { this.quill.getModule('table').insertRowBelow(); },
+          tableRowDelete() { this.quill.getModule('table').deleteRow(); },
+          tableColAdd() { this.quill.getModule('table').insertColumnRight(); },
+          tableColDelete() { this.quill.getModule('table').deleteColumn(); },
           undo() { this.quill.history.undo(); },
           redo() { this.quill.history.redo(); },
         },

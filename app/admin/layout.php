@@ -58,6 +58,9 @@ if (Auth::isAdmin()) {
   <?php endif; ?>
 </header>
 <main id="contenu" class="admin-main" tabindex="-1">
+  <?php if ($user !== null && Settings::helloAssoMissing()): ?>
+    <div class="notice notice-warning" role="status">Les liens HelloAsso ne sont pas renseignés : les boutons « Faire un don » et « Adhérer » mènent pour l'instant à la page « Nous aider ».<?php if (Auth::isAdmin()): ?> <a href="/admin/reglages">Renseigner les liens dans les Réglages</a>.<?php endif; ?></div>
+  <?php endif; ?>
   <?php foreach ($flash as $message): ?>
     <div class="notice notice-<?= e($message[0]) ?>" role="<?= $message[0] === 'error' ? 'alert' : 'status' ?>"><?= e($message[1]) ?></div>
   <?php endforeach; ?>

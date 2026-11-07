@@ -37,7 +37,19 @@ final class PublicController
             Http::redirect(rtrim($path, '/'), 301);
         }
         $slug = substr($path, 1);
-        if (!preg_match('/^[a-z0-9-]{1,100}$/', $slug)) {
+        $isSlug = preg_match('/^[a-z0-9-]{1,100}$/', $slug) === 1;
+        if (!$isSlug || Pages::findBySlug($slug) === null) {
+            // An address of the old websites (Wix, SPIP): /mafé, /_files/ugd/....pdf, /spip.php?article7...
+            $old = OldPaths::find($path, (string) ($_SERVER['QUERY_STRING'] ?? ''));
+            if ($old !== null) {
+                $target = OldPaths::target($old);
+                if ($target === null) {
+                    throw new HttpStop(404); // removed content
+                }
+                Http::redirect($target, 301);
+            }
+        }
+        if (!$isSlug) {
             // Try the normalised form (capitals, accents) before giving up.
             $normal = Slug::make($slug);
             if ($normal !== '' && $normal !== $slug && strpos($slug, '/') === false

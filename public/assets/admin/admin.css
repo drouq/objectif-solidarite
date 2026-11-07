@@ -276,3 +276,19 @@ tbody tr:last-child td { border-bottom: 0; }
   .admin-nav a { padding: 0.6rem 0.7rem; }
   th, td { padding: 0.6rem; }
 }
+
+/* Content warnings, key figures (Objectif Solidarité) */
+.notice-warning { background: #fff4e0; border-color: var(--warn); }
+.marker-warning { margin: 0.75rem 0; font-size: 0.925rem; }
+.marker-warning ul { margin: 0.4rem 0; }
+.marker-warning li { margin: 0.15rem 0; overflow-wrap: anywhere; }
+.help-box { margin: 0.75rem 0 0; font-size: 0.9rem; color: var(--muted); }
+.help-box summary { cursor: pointer; color: var(--blue); }
+.help-box p { margin: 0.4rem 0; }
+code { font-size: 0.9em; background: var(--surface); padding: 0.05rem 0.3rem; border-radius: 3px; overflow-wrap: anywhere; }
+.table-scroll { overflow-x: auto; }
+.figures-table { min-width: 44rem; }
+.figures-table th, .figures-table td { padding: 0.35rem 0.4rem; text-align: left; vertical-align: middle; }
+.figures-table input[type="text"] { width: 100%; min-width: 6rem; }
+.figures-table .input-short { min-width: 3.5rem; }
+.figures-table .figure-new input[type="text"] { background: var(--surface); }

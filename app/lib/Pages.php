@@ -472,6 +472,13 @@ final class Pages
                     if (!empty($card['media_id'])) {
                         $ids[] = (int) $card['media_id'];
                     }
+                    // A card that opens a library PDF.
+                    if (preg_match('~^/media/([a-f0-9]{10,40})\.pdf~', (string) ($card['url'] ?? ''), $m)) {
+                        $pdfId = Db::value("SELECT id FROM media WHERE token = ? AND kind = 'pdf'", [$m[1]]);
+                        if ($pdfId !== null) {
+                            $ids[] = (int) $pdfId;
+                        }
+                    }
                 }
             }
         }

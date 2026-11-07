@@ -288,6 +288,9 @@ final class AdminController
             'errors' => $errors,
             'parentOptions' => Pages::parentOptions($id),
             'depth' => Pages::depth($page),
+            'markers' => Markers::inPage(['title' => $form['title'], 'seo_title' => $form['seo_title'],
+                'seo_description' => $form['seo_description'], 'blocks' => is_array($blocks) ? $blocks : []]),
+            'figureKeys' => array_keys(KeyFigures::map()),
         ]);
     }
 
@@ -459,14 +462,39 @@ final class AdminController
     {
         $errors = [];
         $values = Settings::all();
+        $figures = KeyFigures::all();
         if (Http::isPost()) {
-            $errors = Settings::saveForm($_POST);
+            // Settings and key figures are saved together, or not at all.
+            try {
+                $errors = Db::transaction(function (): array {
+                    $errors = Settings::saveForm($_POST);
+                    if ($errors) {
+                        return $errors;
+                    }
+                    $figureErrors = KeyFigures::saveForm($_POST['fig'] ?? []);
+                    if ($figureErrors) {
+                        throw new UserError((string) $figureErrors['fig']);
+                    }
+                    return [];
+                });
+            } catch (UserError $ex) {
+                $errors = ['fig' => $ex->getMessage()];
+            }
+            Settings::clearCache();
             if (!$errors) {
                 Session::flash('success', 'Réglages enregistrés.');
                 Http::redirect('/admin/reglages');
             }
             foreach (array_keys(Settings::FIELDS) as $key) {
                 $values[$key] = Http::postString($key);
+            }
+            $figures = [];
+            foreach (is_array($_POST['fig'] ?? null) ? $_POST['fig'] : [] as $row) {
+                if (is_array($row) && trim((string) ($row['key'] ?? '')) !== '') {
+                    $figures[] = ['fig_key' => (string) $row['key'], 'label' => (string) ($row['label'] ?? ''),
+                        'value' => (string) ($row['value'] ?? ''), 'unit' => (string) ($row['unit'] ?? ''),
+                        'on_home' => ($row['on_home'] ?? '') === '1' ? 1 : 0];
+                }
             }
         }
         $mediaJson = [];
@@ -480,6 +508,7 @@ final class AdminController
             'title' => 'Réglages',
             'nav' => 'settings',
             'values' => $values,
+            'figures' => $figures,
             'errors' => $errors,
             'mediaJson' => $mediaJson,
         ]);
