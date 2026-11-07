@@ -573,7 +573,46 @@ final class ContentImport
                 return $candidate;
             }
         }
+        // The package may lay files out flat (media/photos/, media/pdf/): accept a file with the
+        // same name anywhere under media/, only if there is exactly one.
+        $matches = $this->findByName(basename($clean));
+        if (count($matches) === 1) {
+            if (!isset($this->foundByName[$ref])) {
+                $this->foundByName[$ref] = substr($matches[0], strlen($this->source) + 1);
+            }
+            return $matches[0];
+        }
+        if (count($matches) > 1) {
+            $this->fail('MEDIA-AMBIGUOUS', $ref, 'Several files named ' . basename($clean) . ' under media/: '
+                . implode(', ', array_map(function (string $m): string {
+                    return substr($m, strlen($this->source) + 1);
+                }, $matches)) . '.');
+        }
         return null;
+    }
+
+    /** @var array<string,string> reference => file found by its name only (for the report) */
+    public $foundByName = [];
+
+    /** @var array<string,string[]>|null lowercase file name => paths under media/ */
+    private $mediaIndex;
+
+    /** @return string[] */
+    private function findByName(string $name): array
+    {
+        if ($this->mediaIndex === null) {
+            $this->mediaIndex = [];
+            $root = $this->source . '/media';
+            if (is_dir($root)) {
+                $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS));
+                foreach ($it as $file) {
+                    if ($file->isFile()) {
+                        $this->mediaIndex[strtolower($file->getFilename())][] = str_replace('\\', '/', $file->getPathname());
+                    }
+                }
+            }
+        }
+        return $this->mediaIndex[strtolower($name)] ?? [];
     }
 
     private function depth(string $key): ?int
@@ -740,11 +779,25 @@ final class ContentImport
         $L[] = '';
         $L[] = '## Package compared with the PRD';
         $L[] = '';
+        if ($this->foundByName) {
+            $this->differences[] = 'Files are not at the paths the pages use: ' . count($this->foundByName)
+                . ' were found by their file name only (unique match under media/). Check the list below.';
+        }
         if (!$this->differences) {
             $L[] = 'No difference detected automatically.';
         }
         foreach (array_unique($this->differences) as $d) {
             $L[] = '- ' . $d;
+        }
+        if ($this->foundByName) {
+            $L[] = '';
+            $L[] = '### Files found by name';
+            $L[] = '';
+            $L[] = '| Reference in the pages | File used |';
+            $L[] = '|---|---|';
+            foreach ($this->foundByName as $ref => $file) {
+                $L[] = '| ' . self::cell($ref) . ' | ' . self::cell($file) . ' |';
+            }
         }
         return implode("\n", $L) . "\n";
     }

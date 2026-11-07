@@ -273,6 +273,18 @@ $sizeImport = (function () use ($validate, $basePages): array {
     return array_column($result->failures(), 0);
 })();
 check('validation rule MEDIA-SIZE', in_array('MEDIA-SIZE', $sizeImport, true));
+writeFixture($fixture, $basePages);
+@mkdir($fixture . '/media/pdf', 0777, true);
+rename($fixture . '/media/files/doc.pdf', $fixture . '/media/pdf/doc.pdf');
+$flat = new ContentImport($fixture);
+$flat->validate();
+check('file found by its name when the folder layout differs', $flat->failures() === [] && $flat->media['/files/doc.pdf']['status'] === 'ok'
+    && ($flat->foundByName['/files/doc.pdf'] ?? '') === 'media/pdf/doc.pdf' && strpos($flat->report('check', false), 'Files found by name') !== false, json_encode($flat->failures()));
+@mkdir($fixture . '/media/autre', 0777, true);
+copy($fixture . '/media/pdf/doc.pdf', $fixture . '/media/autre/doc.pdf');
+$twice = new ContentImport($fixture);
+$twice->validate();
+check('validation rule MEDIA-AMBIGUOUS (two files with the same name)', in_array('MEDIA-AMBIGUOUS', $codes($twice), true));
 $noHeader = $basePages;
 $noHeader['04-projet-b.md'][0]['header_image'] = 'none';
 $noHeaderResult = $validate($noHeader);
