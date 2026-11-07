@@ -372,7 +372,8 @@ final class ContentImport
                     $this->fail('CHILD-DESCRIPTION', $file, 'A sub-page needs a description (meta_description): it is shown on its card.');
                 }
                 if (self::isNone($page['header_image']) || Markers::inText($page['header_image'])) {
-                    $this->fail('CHILD-HEADER-IMAGE', $file, 'A sub-page needs a header image reference: it is the photo of its card. Found: "' . self::short($page['header_image']) . '".');
+                    // Daniel's decision (7 November 2026): a warning, not a failure. The card shows without a photo.
+                    $this->warn($file, 'No header image on this sub-page: its card on the parent page has no photo. Found: "' . self::short($page['header_image']) . '".');
                 }
             }
             if (($meta = $page['meta']['status'] ?? 'draft') !== 'draft') {

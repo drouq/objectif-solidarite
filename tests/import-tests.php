@@ -233,10 +233,6 @@ $rules = [
         $p['04-projet-b.md'][0]['meta_description'] = '';
         return $p;
     },
-    'CHILD-HEADER-IMAGE' => function (array $p): array {
-        $p['04-projet-b.md'][0]['header_image'] = 'none';
-        return $p;
-    },
     'MEDIA-MISSING' => function (array $p): array {
         $p['04-projet-b.md'][0]['header_image'] = 'photos/absente.jpg';
         return $p;
@@ -277,6 +273,11 @@ $sizeImport = (function () use ($validate, $basePages): array {
     return array_column($result->failures(), 0);
 })();
 check('validation rule MEDIA-SIZE', in_array('MEDIA-SIZE', $sizeImport, true));
+$noHeader = $basePages;
+$noHeader['04-projet-b.md'][0]['header_image'] = 'none';
+$noHeaderResult = $validate($noHeader);
+check('sub-page without header image: warning only, not a failure', $noHeaderResult->failures() === []
+    && strpos(json_encode($noHeaderResult->warnings, JSON_UNESCAPED_UNICODE), 'No header image') !== false);
 $noHome = $validate($basePages, ['03-architecture.md' => "# Architecture\n\nPas de page d'accueil désignée.\n"]);
 check('validation rule HOME (unclear: ask Daniel)', in_array('HOME', $codes($noHome), true) && strpos(json_encode($noHome->failures(), JSON_UNESCAPED_UNICODE), 'Ask Daniel') !== false);
 $homeChild = $basePages;
