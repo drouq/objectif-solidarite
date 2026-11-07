@@ -5,6 +5,7 @@ $groups = [
     'L\'association' => ['site_name', 'tagline', 'site_description', 'contact_email'],
     'Images' => ['logo_media_id', 'favicon_media_id', 'og_media_id'],
     'HelloAsso (dons et adhésions)' => ['helloasso_url', 'helloasso_don_url', 'helloasso_adhesion_url'],
+    'Page d\'accueil' => ['home_projects_slug'],
     'Pied de page' => ['footer_text'],
 ];
 ?>

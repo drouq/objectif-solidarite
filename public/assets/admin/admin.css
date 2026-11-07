@@ -1,11 +1,11 @@
 /* Admin area styles. Plain, readable, large click targets. */
 
 :root {
-  --ink: #14183a;
+  --ink: #1f2a30;
   --muted: #4a5068;
-  --blue: #0b3a8f;
-  --blue-dark: #082c6e;
-  --blue-deep: #0a1f4d;
+  --blue: #0a669f;
+  --blue-dark: #08527f;
+  --blue-deep: #0b3f63;
   --surface: #f3f5f9;
   --line: #d0d7e4;
   --white: #fff;

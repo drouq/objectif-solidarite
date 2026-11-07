@@ -6,7 +6,8 @@
     "build": "node build.mjs"
   },
   "devDependencies": {
-    "@fontsource-variable/source-serif-4": "5.2.8",
+    "@fontsource-variable/fraunces": "5.3.0",
+    "@fontsource-variable/lexend": "5.3.0",
     "esbuild": "0.25.12",
     "quill": "2.0.3"
   }

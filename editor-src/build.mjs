@@ -19,9 +19,12 @@ await build({
 });
 
 copyFileSync('node_modules/quill/dist/quill.snow.css', out + '/quill.snow.css');
-copyFileSync(
-  'node_modules/@fontsource-variable/source-serif-4/files/source-serif-4-latin-wght-normal.woff2',
-  '../public/assets/fonts/source-serif-4-latin-wght-normal.woff2'
-);
-copyFileSync('node_modules/@fontsource-variable/source-serif-4/LICENSE', '../public/assets/fonts/LICENSE-source-serif-4.txt');
+// Public site fonts (self-hosted): Fraunces for headings, Lexend for text.
+const fonts = [
+  ['@fontsource-variable/fraunces/files/fraunces-latin-wght-normal.woff2', 'fraunces-latin-wght-normal.woff2'],
+  ['@fontsource-variable/fraunces/LICENSE', 'LICENSE-fraunces.txt'],
+  ['@fontsource-variable/lexend/files/lexend-latin-wght-normal.woff2', 'lexend-latin-wght-normal.woff2'],
+  ['@fontsource-variable/lexend/LICENSE', 'LICENSE-lexend.txt'],
+];
+for (const [from, to] of fonts) copyFileSync('node_modules/' + from, '../public/assets/fonts/' + to);
 console.log('Admin bundle built.');

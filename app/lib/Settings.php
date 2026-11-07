@@ -26,6 +26,7 @@ final class Settings
         'helloasso_don_url' => ['Lien « Faire un don » (si vide : page HelloAsso)', 'url', ''],
         'helloasso_adhesion_url' => ['Lien « Adhérer » (si vide : page HelloAsso)', 'url', ''],
         'footer_text' => ['Texte du pied de page', 'textarea', ''],
+        'home_projects_slug' => ['Adresse de la page dont les sous-pages sont présentées sur l\'accueil (par exemple projets)', 'text', 'projets'],
     ];
 
     /** @var array<string,string>|null */

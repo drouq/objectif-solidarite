@@ -22,3 +22,6 @@
 
 # Content import output (holds the real content): never in git
 /build/seed/
+
+# Local editor settings
+/.claude/

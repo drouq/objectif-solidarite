@@ -431,7 +431,13 @@ function createRichText(container, html) {
   quill.root.setAttribute('role', 'textbox');
 
   if (html) {
-    quill.setContents(quill.clipboard.convert({ html: html }), 'silent');
+    // Quill's tables only know <td> cells: header cells become normal cells (the site
+    // shows the first row of every table as its header row anyway).
+    const forQuill = html
+      .replace(/<\/?(thead|tbody)>/g, '')
+      .replace(/<th(\s[^>]*)?>/g, '<td>')
+      .replace(/<\/th>/g, '</td>');
+    quill.setContents(quill.clipboard.convert({ html: forQuill }), 'silent');
   }
   quill.history.clear();
   quill.on('text-change', markDirty);

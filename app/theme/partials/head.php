@@ -39,14 +39,15 @@ $largeImage = $image === null || Media::displaySize($image)[0] >= 600; // the de
 <meta name="twitter:description" content="<?= e($meta['description']) ?>">
 <?php endif; ?>
 <meta name="twitter:image" content="<?= e($imageUrl) ?>">
-<meta name="theme-color" content="#0b3a8f">
+<meta name="theme-color" content="#0b3f63">
 <?php if ($favicon !== null): ?>
 <link rel="icon" href="<?= e(Media::url($favicon, 480)) ?>">
 <?php else: ?>
 <link rel="icon" href="<?= e(asset('img/favicon.png')) ?>" type="image/png">
 <link rel="apple-touch-icon" href="<?= e(asset('img/apple-touch-icon.png')) ?>">
 <?php endif; ?>
-<link rel="preload" href="<?= e(asset('fonts/source-serif-4-latin-wght-normal.woff2')) ?>" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="<?= e(asset('fonts/lexend-latin-wght-normal.woff2')) ?>" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="<?= e(asset('fonts/fraunces-latin-wght-normal.woff2')) ?>" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="<?= e(asset('css/site.css')) ?>">
 <?php if (Renderer::$hasEmbed): ?>
 <script src="<?= e(asset('js/site.js')) ?>" defer></script>

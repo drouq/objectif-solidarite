@@ -100,6 +100,8 @@ final class Renderer
             $attrs = (string) preg_replace('/\shref="[^"]*"/', '', $m[1] . $m[3]);
             return '<a href="' . e(Media::url($media)) . '"' . rtrim($attrs) . '>';
         }, $html);
+        // A donation button in a text uses the donation colour.
+        $html = str_replace('href="{{HELLOASSO_DON_URL}}" class="btn"', 'href="{{HELLOASSO_DON_URL}}" class="btn btn-primary"', $html);
         // HelloAsso links written as {{HELLOASSO_DON_URL}}...: the addresses from Réglages.
         $html = (string) preg_replace_callback('~href="(\{\{HELLOASSO_[A-Z_]+\}\})"~', function (array $m): string {
             return 'href="' . e(self::href($m[1])) . '"';
@@ -145,13 +147,22 @@ final class Renderer
         }, $html);
     }
 
-    /** @param array<int,array<string,mixed>> $cards */
-    public static function cards(array $cards, string $headingTag = 'h2'): string
+    /**
+     * @param array<int,array<string,mixed>> $cards
+     * @param bool $photoLed page cards: a neutral tile stands in for a missing photo, so the grid keeps its shape
+     */
+    public static function cards(array $cards, string $headingTag = 'h2', bool $photoLed = false): string
     {
         if (!$cards) {
             return '';
         }
-        $html = '<ul class="block block-cards cards" role="list">';
+        $hasImage = false;
+        foreach ($cards as $card) {
+            $hasImage = $hasImage || !empty($card['media_id']);
+        }
+        // A grid without any photo (figures, documents) is shown as plain text cards.
+        $style = $photoLed ? ' cards-photo' : ($hasImage ? '' : ' cards-text');
+        $html = '<ul class="block block-cards cards' . $style . '" role="list">';
         foreach ($cards as $card) {
             $media = self::media(isset($card['media_id']) ? (int) $card['media_id'] : null);
             $url = self::href((string) ($card['url'] ?? ''));
@@ -159,6 +170,8 @@ final class Renderer
             $html .= '<li class="card' . ($url !== '' ? ' card-link' : '') . '">';
             if ($media !== null && $media['kind'] === 'image') {
                 $html .= '<div class="card-image">' . self::img($media, '(min-width: 64rem) 22rem, (min-width: 40rem) 45vw, 100vw', '') . '</div>';
+            } elseif ($photoLed || $hasImage) {
+                $html .= '<div class="card-image card-image-empty" aria-hidden="true"></div>';
             }
             $html .= '<div class="card-body"><' . $headingTag . ' class="card-title">';
             $html .= $url !== '' ? '<a href="' . e($url) . '">' . $title . '</a>' : $title;
@@ -203,6 +216,6 @@ final class Renderer
             ];
         }
         return '<section class="children" aria-labelledby="children-title"><h2 id="children-title">Dans cette rubrique</h2>'
-            . self::cards($cards, 'h3') . '</section>';
+            . self::cards($cards, 'h3', true) . '</section>';
     }
 }
