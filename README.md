@@ -99,6 +99,31 @@ Follow [section 4](#4-google-sign-in-setup). It must be a **new** client for thi
 
 The repository is public and read over HTTPS, so OVH needs no key. Never commit `config.php`, passwords or keys.
 
+### 2.5 bis Without OVH Git: upload by SSH (scp)
+
+If OVH answers "Git could not be enabled: quota is reached for VCS websites", the plan has no Git slot left. The site runs the same without Git; only updates are by hand.
+
+1. On your computer, prepare the folders (code from the last commit, plus the seed for the first installation):
+
+   ```bash
+   tools/php85/php.exe build/prepare-upload.php --with-content
+   ```
+
+   This makes `build/upload/os/` (code) and `build/upload/os-private/` (database, media and a `config.php` for staging). Open `build/upload/os-private/config.php` in Notepad and fill in `admin_email`, `google_client_id` and `google_client_secret` (section 4).
+2. Find your login and server: OVH Control Panel > **Hébergements** > your plan > **FTP - SSH** tab (login, and the SFTP/SSH server, like `ssh.clusterXXX.hosting.ovh.net`).
+3. Upload both folders into the top of your space, next to the other sites. The command asks for your OVH password in the terminal:
+
+   ```bash
+   scp -r build/upload/os build/upload/os-private LOGIN@SERVER:
+   ```
+
+   (Replace `LOGIN` and `SERVER`. The final `:` means "my home folder".) The folders `os` and `os-private` you created in step 2.1 receive the files.
+4. Skip section 3, step 5: the content is already uploaded. Go on with step 2.7.
+
+Without `scp` (SSH not enabled on the plan), upload the same two folders with FileZilla: **Server** > **Force showing hidden files** first, so the `.htaccess` files are sent.
+
+**Upload `os-private` only this once.** Later updates send the code only ([section 6](#6-updating-the-site-later)).
+
 ### 2.6 Upload the content
 
 Follow [section 3](#3-première-mise-en-ligne-du-contenu-seed-upload).
@@ -207,6 +232,18 @@ Only after you have approved the staging site.
 3. Open the site once. Database changes (migrations) run on their own on this first visit. They only add things and never delete data.
 
 `os-private/` (settings, content, uploads) is never touched by an update.
+
+**Without OVH Git** (section 2.5 bis): commit the change, then prepare and send the code only. Never send `os-private` again.
+
+```bash
+tools/php85/php.exe build/prepare-upload.php
+```
+
+```bash
+scp -r build/upload/os LOGIN@SERVER:
+```
+
+This overwrites the program files in `os/`. A file deleted from the code stays on the server; that is harmless. Then open the site once (step 3 above).
 
 Before a big update: **Admin** > **Sauvegarde** > download a backup.
 

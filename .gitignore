@@ -25,3 +25,6 @@
 
 # Local editor settings
 /.claude/
+
+# Folders prepared for a manual upload (may hold content and config.php)
+/build/upload/
