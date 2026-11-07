@@ -7,7 +7,8 @@
  *   tools/php73/php.exe build/import-content.php --import --publish   also publish the pages without markers
  *
  * Options: --force (replace an existing seed), --source=<folder> (default source-content),
- * --out=<folder> (default build/seed), --allow-any-php (tests only: import without PHP 7.3).
+ * --out=<folder> (default build/seed), --allow-any-php (tests only: import without PHP 7.3),
+ * --allow-missing-media (a missing image or PDF becomes a visible [À COMPLÉTER] marker instead of a failure).
  *
  * The seed is build/seed/os-private/data/... and build/seed/os-private/media/..., to upload
  * into the server's os-private/ folder (README, "Première mise en ligne du contenu").
@@ -16,11 +17,11 @@
 declare(strict_types=1);
 
 $project = dirname(__DIR__);
-$options = ['check' => false, 'import' => false, 'publish' => false, 'force' => false, 'allow-any-php' => false];
+$options = ['check' => false, 'import' => false, 'publish' => false, 'force' => false, 'allow-any-php' => false, 'allow-missing-media' => false];
 $source = $project . '/source-content';
 $out = $project . '/build/seed';
 foreach (array_slice($argv, 1) as $arg) {
-    if (preg_match('/^--(check|import|publish|force|allow-any-php)$/', $arg, $m)) {
+    if (preg_match('/^--(check|import|publish|force|allow-any-php|allow-missing-media)$/', $arg, $m)) {
         $options[$m[1]] = true;
     } elseif (preg_match('/^--source=(.+)$/', $arg, $m)) {
         $source = $m[1];
@@ -75,6 +76,7 @@ require __DIR__ . '/lib/Markdown.php';
 require __DIR__ . '/lib/ContentImport.php';
 
 $import = new ContentImport($source);
+$import->allowMissingMedia = $options['allow-missing-media'];
 $import->validate();
 $mode = $importing ? 'import' : 'check';
 

@@ -285,6 +285,17 @@ copy($fixture . '/media/pdf/doc.pdf', $fixture . '/media/autre/doc.pdf');
 $twice = new ContentImport($fixture);
 $twice->validate();
 check('validation rule MEDIA-AMBIGUOUS (two files with the same name)', in_array('MEDIA-AMBIGUOUS', $codes($twice), true));
+$missingPdf = $basePages;
+$missingPdf['04-projet-b.md'][1] .= "\n[Le journal](/files/absent.pdf)\n";
+writeFixture($fixture, $missingPdf);
+$allowed = new ContentImport($fixture);
+$allowed->allowMissingMedia = true;
+$allowed->validate();
+check('--allow-missing-media: a missing file is a warning', $allowed->failures() === [] && $allowed->media['/files/absent.pdf']['status'] === 'missing'
+    && strpos(json_encode($allowed->warnings, JSON_UNESCAPED_UNICODE), 'allow-missing-media') !== false);
+$notAllowed = new ContentImport($fixture);
+$notAllowed->validate();
+check('without the option, a missing file fails', in_array('MEDIA-MISSING', $codes($notAllowed), true));
 $noHeader = $basePages;
 $noHeader['04-projet-b.md'][0]['header_image'] = 'none';
 $noHeaderResult = $validate($noHeader);
@@ -376,6 +387,13 @@ $seedDb = null;
 check('--publish publishes only pages without markers', $status['projet-b'] === 'published' && $status['projets'] === 'published'
     && $status['projet-a'] === 'hidden' && $status['videos'] === 'hidden' && $status['accueil'] === 'published', json_encode($status));
 check('--publish without --import refused', $runImport('--publish')[0] === 2);
+writeFixture($fixture, $missingPdf);
+list($code, $output) = $runImport('--import --allow-missing-media --force --allow-any-php');
+$seedDb = new PDO('sqlite:' . $seed . '/os-private/data/site.sqlite');
+$blocksB = (string) $seedDb->query("SELECT blocks FROM pages WHERE slug = 'projet-b'")->fetchColumn();
+$seedDb = null;
+check('--allow-missing-media: import runs, the link becomes text and a marker', $code === 0 && strpos($blocksB, 'Le journal [À COMPLÉTER : document non importé]') !== false
+    && strpos($blocksB, 'absent.pdf') === false, $output . ' ' . $blocksB);
 $broken = $basePages;
 $broken['04-projet-b.md'][0]['slug'] = 'Mauvais Slug';
 writeFixture($fixture, $broken);

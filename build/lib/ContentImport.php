@@ -42,6 +42,8 @@ final class ContentImport
     public $home;
     /** @var string[] how the package differs from the description in the PRD */
     public $differences = [];
+    /** @var bool missing files become warnings (--allow-missing-media): links and images turn into markers */
+    public $allowMissingMedia = false;
     /** @var bool */
     private $loaded = false;
 
@@ -528,7 +530,12 @@ final class ContentImport
                 if ($file === null) {
                     $item['status'] = 'missing';
                     $item['reason'] = 'file not found in media/';
-                    $this->fail('MEDIA-MISSING', $ref, 'Referenced file not found in media/ (used by ' . implode(', ', $item['uses']) . ').');
+                    if ($this->allowMissingMedia) {
+                        $item['reason'] .= ': allowed by --allow-missing-media, the link becomes a marker';
+                        $this->warn($ref, 'Missing file allowed (--allow-missing-media): used by ' . implode(', ', $item['uses']) . ', shown as [À COMPLÉTER : document non importé].');
+                    } else {
+                        $this->fail('MEDIA-MISSING', $ref, 'Referenced file not found in media/ (used by ' . implode(', ', $item['uses']) . ').');
+                    }
                 } else {
                     $item['file'] = $file;
                     $mime = Media::detectMime($file);
@@ -894,7 +901,7 @@ final class ContentImport
                         if (isset($byRef[$image])) {
                             $mediaId = (int) $byRef[$image]['id'];
                         } else {
-                            $text = trim($text . ' [À COMPLÉTER : photo non importée (droits à vérifier)]');
+                            $text = trim($text . ' [À COMPLÉTER : photo non importée]');
                         }
                     }
                     $link = trim((string) ($card['link'] ?? ''));
