@@ -1,0 +1,10 @@
+{
+  "name": "site-review-tools",
+  "private": true,
+  "description": "Screenshots and Lighthouse checks for review. Runs on a developer computer only.",
+  "type": "module",
+  "devDependencies": {
+    "lighthouse": "12.8.2",
+    "puppeteer-core": "24.22.3"
+  }
+}

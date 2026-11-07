@@ -1,0 +1,2 @@
+# Program files are never served to visitors.
+Require all denied

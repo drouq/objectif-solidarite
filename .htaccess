@@ -1,0 +1,16 @@
+# Used when the domain points at this folder (OVH Git deployment).
+# Only the "public" folder is served. Everything else (app, tests, README...) stays private:
+# every request is sent into public/, where public/.htaccess takes over.
+# Do not add "php_flag" or "php_value" lines: OVH answers them with an error 500.
+
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+
+# Without mod_rewrite, refuse everything rather than expose the program files.
+<IfModule !mod_rewrite.c>
+  Require all denied
+</IfModule>

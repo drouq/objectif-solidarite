@@ -1,0 +1,57 @@
+# Apache rules for the web root (OVH shared hosting).
+# Do not add "php_flag" or "php_value" lines: OVH answers them with an error 500.
+
+Options -Indexes -MultiViews
+DirectoryIndex index.php
+AddDefaultCharset utf-8
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # Private folders and files, in case app/ and data/ were uploaded inside the web root.
+  RewriteRule ^(app|data|tools|tests|build|editor-src|source-content|review|dist)(/|$) - [R=404,L,NC]
+  RewriteRule (^|/)\. - [R=404,L]
+  RewriteRule \.(sqlite|sqlite3|db|log|md|ini|sh|bak|lock|json|dist|sample\.php)$ - [R=404,L,NC]
+  RewriteRule ^config\.php$ - [R=404,L,NC]
+
+  # Everything that is not a real file goes to the front controller.
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteRule ^ index.php [L,QSA]
+</IfModule>
+
+# Extra protection if mod_rewrite is off.
+<FilesMatch "(^\.|\.(sqlite|sqlite3|db|log|md|ini|sh|bak|lock)$|^config\.php$|^config\.sample\.php$)">
+  Require all denied
+</FilesMatch>
+
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set X-Frame-Options "DENY"
+  Header always set Strict-Transport-Security "max-age=31536000" "expr=%{HTTPS} == 'on'"
+  <FilesMatch "\.(css|js|woff2|png|jpg|jpeg|webp|svg|ico|pdf)$">
+    Header set Content-Security-Policy "default-src 'none'; img-src 'self'; style-src 'self'; font-src 'self'; frame-ancestors 'none'"
+  </FilesMatch>
+</IfModule>
+
+<IfModule mod_expires.c>
+  ExpiresActive On
+  # Files are versioned with ?v=..., so browsers may keep them a long time.
+  ExpiresByType text/css "access plus 1 year"
+  ExpiresByType application/javascript "access plus 1 year"
+  ExpiresByType font/woff2 "access plus 1 year"
+  ExpiresByType image/webp "access plus 1 year"
+  ExpiresByType image/jpeg "access plus 1 year"
+  ExpiresByType image/png "access plus 1 month"
+  ExpiresByType image/x-icon "access plus 1 month"
+  ExpiresByType application/pdf "access plus 1 day"
+</IfModule>
+
+<IfModule mod_mime.c>
+  AddType font/woff2 .woff2
+  AddType image/webp .webp
+</IfModule>
+
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css application/javascript application/xml text/plain image/svg+xml
+</IfModule>

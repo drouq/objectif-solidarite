@@ -1,0 +1,13 @@
+{
+  "name": "site-admin-editor",
+  "private": true,
+  "description": "Builds the admin editor bundle and copies fonts. Runs on a developer computer only.",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "devDependencies": {
+    "@fontsource-variable/source-serif-4": "5.2.8",
+    "esbuild": "0.25.12",
+    "quill": "2.0.3"
+  }
+}
