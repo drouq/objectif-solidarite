@@ -61,7 +61,7 @@ function iniBytes(string $value): int
     }
     return (int) $n;
 }
-function probe(string $url): array
+function probe(string $url, bool $verify = true): array
 {
     // PHP's built-in server answers one request at a time: calling itself would hang.
     if (PHP_SAPI === 'cli-server' && strpos($url, 'googleapis.com') === false) {
@@ -77,14 +77,15 @@ function probe(string $url): array
         CURLOPT_FOLLOWLOCATION => false,
         CURLOPT_TIMEOUT => 8,
         CURLOPT_CONNECTTIMEOUT => 5,
-        CURLOPT_SSL_VERIFYPEER => true,
-        CURLOPT_SSL_VERIFYHOST => 2,
+        CURLOPT_SSL_VERIFYPEER => $verify,
+        CURLOPT_SSL_VERIFYHOST => $verify ? 2 : 0,
         CURLOPT_USERAGENT => 'site-check/1.0',
     ]);
     $body = curl_exec($ch);
     $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $error = $body === false ? curl_error($ch) : '';
-    return [$code, $error !== '' ? $error : (string) $body];
+    $errno = curl_errno($ch);
+    return [$code, $error !== '' ? $error : (string) $body, $errno];
 }
 
 $https = (!empty($_SERVER['HTTPS']) && strtolower((string) $_SERVER['HTTPS']) !== 'off')
@@ -195,11 +196,20 @@ if ($config) {
 
 // ---------- Web server ----------
 row('Serveur web', 'HTTPS', $https ? 'OK' : 'ATTENTION', $https ? 'cette page est ouverte en HTTPS' : 'cette page est ouverte en HTTP. Activez le certificat SSL gratuit dans OVH, puis ouvrez https://' . $host . '/check.php');
-list($code, $body) = probe($self . '/__rewrite-check');
+list($code, $body, $errno) = probe($self . '/__rewrite-check');
+// The site calls itself to test the rules below. If its certificate is not valid for this address yet
+// (just created, or not issued), say so once, then test without checking the certificate: these calls
+// only read the site's own answer codes.
+$verifySelf = true;
+if ($https && in_array($errno, [51, 60], true)) {
+    row('Serveur web', 'Certificat SSL pour cette adresse', 'ERREUR', 'le certificat présenté ne couvre pas ' . $host . ' (ou n\'est pas encore installé). OVH > Hébergements > SSL : activez ou regénérez le certificat Let\'s Encrypt de cette adresse, puis attendez son installation (jusqu\'à une ou deux heures).');
+    $verifySelf = false;
+    list($code, $body) = probe($self . '/__rewrite-check', false);
+}
 row('Serveur web', 'Réécriture d\'adresses (mod_rewrite)', $body === 'rewrite-ok' ? 'OK' : 'ERREUR', $body === 'rewrite-ok' ? 'active' : 'pas de réponse attendue (code ' . $code . '). Le fichier .htaccess a-t-il été envoyé ? (FileZilla : afficher les fichiers cachés)');
 $private = ['/app/bootstrap.php' => 'Dossier app', '/data/site.sqlite' => 'Base de données', '/config.php' => 'config.php', '/config.sample.php' => 'config.sample.php', '/README.md' => 'README.md', '/tests/run.php' => 'Dossier tests'];
 foreach ($private as $path => $label) {
-    list($code) = probe($self . $path);
+    list($code) = probe($self . $path, $verifySelf);
     $blocked = $code === 403 || $code === 404;
     row('Serveur web', $label . ' inaccessible depuis le web', $blocked ? 'OK' : ($code === 0 ? 'ATTENTION' : 'ERREUR'),
         $code === 0 ? 'test impossible depuis le serveur' : 'réponse ' . $code . ($blocked ? '' : ' : CE FICHIER EST VISIBLE. Vérifiez les fichiers .htaccess.'));
