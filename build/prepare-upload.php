@@ -45,6 +45,8 @@ if ($dirty !== '') {
     fwrite(STDERR, "Note: uncommitted changes are NOT included (the folder is made from the last commit).\n");
 }
 
+// Keep a config.php already filled in (secrets typed by hand) across runs.
+$keptConfig = is_file($out . '/os-private/config.php') ? (string) file_get_contents($out . '/os-private/config.php') : null;
 rrmdir($out);
 @mkdir($out, 0777, true);
 $zip = $out . '/code.zip';
@@ -76,7 +78,17 @@ if ($withContent) {
         ["'base_url' => 'https://test.objectif-solidarite.org',"],
         $sample
     );
+    if ($keptConfig !== null) {
+        $config = $keptConfig;
+        echo "Your existing config.php was kept.\n";
+    }
     file_put_contents($out . '/os-private/config.php', $config);
-    echo "Content ready in build/upload/os-private (seed + config.php for staging).\n"
-        . "Fill in admin_email, google_client_id and google_client_secret in build/upload/os-private/config.php before uploading.\n";
+    echo "Content ready in build/upload/os-private (seed + config.php for staging).\n";
+    if (preg_match("/'(admin_email|google_client_id|google_client_secret)' => ''/", $config)) {
+        echo "Fill in admin_email, google_client_id and google_client_secret in build/upload/os-private/config.php before uploading.\n";
+    }
+} elseif ($keptConfig !== null) {
+    // Code-only run: put the filled-in config.php back where it was.
+    @mkdir($out . '/os-private', 0777, true);
+    file_put_contents($out . '/os-private/config.php', $keptConfig);
 }
