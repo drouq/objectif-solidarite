@@ -140,11 +140,12 @@ foreach ($extensions as $ext => $info) {
 // ---------- Limits ----------
 $maxImage = (float) ($config['max_image_mb'] ?? 10);
 $maxPdf = (float) ($config['max_pdf_mb'] ?? 20);
-$needed = (int) (max($maxImage, $maxPdf) * 1048576);
+$maxVideo = (float) ($config['max_video_mb'] ?? 50);
+$needed = (int) (max($maxImage, $maxPdf, $maxVideo) * 1048576);
 $upload = iniBytes((string) ini_get('upload_max_filesize'));
 $post = iniBytes((string) ini_get('post_max_size'));
 row('Limites', 'Taille maximale d\'un envoi (upload_max_filesize)', $upload >= $needed ? 'OK' : 'ATTENTION',
-    ini_get('upload_max_filesize') . ($upload >= $needed ? '' : ' : inférieure à la limite du site (' . max($maxImage, $maxPdf) . ' Mo). Augmentez-la dans la configuration PHP d\'OVH (fichier .ovhconfig ou espace client), ou baissez max_pdf_mb dans config.php.'));
+    ini_get('upload_max_filesize') . ($upload >= $needed ? '' : ' : inférieure à la limite du site (' . max($maxImage, $maxPdf, $maxVideo) . ' Mo). Augmentez-la dans la configuration PHP d\'OVH (fichier .ovhconfig ou espace client), ou baissez max_video_mb ou max_pdf_mb dans config.php.'));
 row('Limites', 'Taille maximale d\'un formulaire (post_max_size)', $post >= $needed ? 'OK' : 'ATTENTION', (string) ini_get('post_max_size'));
 $memory = iniBytes((string) ini_get('memory_limit'));
 row('Limites', 'Mémoire (memory_limit)', $memory >= 256 * 1048576 ? 'OK' : 'ATTENTION',

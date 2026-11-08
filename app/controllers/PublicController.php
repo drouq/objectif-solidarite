@@ -183,14 +183,14 @@ final class PublicController
      */
     private static function media(string $name): void
     {
-        if (!preg_match('/^[a-f0-9]{10,40}(-\d{1,5})?\.(webp|jpg|png|pdf)$/', $name, $m)) {
+        if (!preg_match('/^[a-f0-9]{10,40}(-\d{1,5})?\.(webp|jpg|png|pdf|mp4)$/', $name, $m)) {
             throw new HttpStop(404);
         }
         $file = Media::publicDir() . '/' . $name;
         if (!is_file($file)) {
             throw new HttpStop(404);
         }
-        $types = ['webp' => 'image/webp', 'jpg' => 'image/jpeg', 'png' => 'image/png', 'pdf' => 'application/pdf'];
+        $types = ['webp' => 'image/webp', 'jpg' => 'image/jpeg', 'png' => 'image/png', 'pdf' => 'application/pdf', 'mp4' => 'video/mp4'];
         $mtime = (int) filemtime($file);
         $lastModified = gmdate('D, d M Y H:i:s', $mtime) . ' GMT';
         // Addresses carry ?v=<date>, so a long cache is safe for images.
@@ -206,10 +206,49 @@ final class PublicController
             http_response_code(304);
             return;
         }
-        header('Content-Length: ' . filesize($file));
-        if (Http::method() !== 'HEAD') {
-            readfile($file);
+        // Byte ranges: browsers ask for parts of a video to start playing and to jump ahead.
+        // Safari and iPhones refuse to play a video from a server without them.
+        $size = (int) filesize($file);
+        $start = 0;
+        $end = $size - 1;
+        header('Accept-Ranges: bytes');
+        $range = trim((string) ($_SERVER['HTTP_RANGE'] ?? ''));
+        if ($range !== '' && preg_match('/^bytes=(\d*)-(\d*)$/', $range, $r) && ($r[1] !== '' || $r[2] !== '')) {
+            if ($r[1] === '') {
+                $start = max(0, $size - (int) $r[2]); // the last N bytes
+            } else {
+                $start = (int) $r[1];
+                if ($r[2] !== '') {
+                    $end = min((int) $r[2], $size - 1);
+                }
+            }
+            if ($start > $end || $start >= $size) {
+                http_response_code(416);
+                header('Content-Range: bytes */' . $size);
+                return;
+            }
+            http_response_code(206);
+            header('Content-Range: bytes ' . $start . '-' . $end . '/' . $size);
         }
+        $length = $end - $start + 1;
+        header('Content-Length: ' . $length);
+        if (Http::method() === 'HEAD' || $length <= 0) {
+            return;
+        }
+        $handle = fopen($file, 'rb');
+        if ($handle === false) {
+            throw new HttpStop(404);
+        }
+        fseek($handle, $start);
+        while ($length > 0 && !feof($handle)) {
+            $chunk = (string) fread($handle, (int) min(65536, $length));
+            echo $chunk;
+            $length -= strlen($chunk);
+            if ($chunk === '') {
+                break;
+            }
+        }
+        fclose($handle);
     }
 
     private static function robots(): void

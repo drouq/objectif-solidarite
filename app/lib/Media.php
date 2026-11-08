@@ -19,6 +19,8 @@ final class Media
         'image/png' => ['image', 'png'],
         'image/webp' => ['image', 'webp'],
         'application/pdf' => ['pdf', 'pdf'],
+        // Short videos, kept as sent (no conversion on the server). Shown with the browser's own player.
+        'video/mp4' => ['video', 'mp4'],
     ];
 
     public static function publicDir(): string
@@ -72,8 +74,8 @@ final class Media
     public static function url(array $media, int $width = 960): string
     {
         $version = '?v=' . strtotime((string) $media['updated_at']);
-        if ($media['kind'] === 'pdf') {
-            return '/media/' . $media['token'] . '.pdf' . $version;
+        if ($media['kind'] === 'pdf' || $media['kind'] === 'video') {
+            return '/media/' . $media['token'] . '.' . ($media['kind'] === 'pdf' ? 'pdf' : 'mp4') . $version;
         }
         $variants = self::variants($media);
         $chosen = $variants ? $variants[0] : 0;
@@ -134,12 +136,12 @@ final class Media
         $size = (int) filesize($path);
         $mime = self::detectMime($path);
         if (!isset(self::TYPES[$mime])) {
-            throw new UserError('Type de fichier refusé. Formats acceptés : JPG, PNG, WebP et PDF.');
+            throw new UserError('Type de fichier refusé. Formats acceptés : JPG, PNG, WebP, PDF et vidéo MP4.');
         }
         list($kind, $originalExt) = self::TYPES[$mime];
         $max = Config::maxBytes($kind);
         if ($size > $max) {
-            $label = $kind === 'pdf' ? 'PDF' : 'images';
+            $label = $kind === 'pdf' ? 'PDF' : ($kind === 'video' ? 'vidéos' : 'images');
             throw new UserError('Fichier trop lourd : ' . self::formatSize($size) . '. Limite pour les '
                 . $label . ' : ' . self::formatSize($max) . '.');
         }
@@ -150,9 +152,9 @@ final class Media
                 throw new UserError('Fichier à remplacer introuvable.');
             }
             if ($existing['kind'] !== $kind) {
-                throw new UserError($kind === 'pdf'
+                throw new UserError($existing['kind'] === 'image'
                     ? 'Une image ne peut être remplacée que par une image.'
-                    : 'Un PDF ne peut être remplacé que par un PDF.');
+                    : ($existing['kind'] === 'pdf' ? 'Un PDF ne peut être remplacé que par un PDF.' : 'Une vidéo ne peut être remplacée que par une vidéo MP4.'));
             }
         }
         $token = $existing !== null ? (string) $existing['token'] : bin2hex(random_bytes(10));
@@ -171,6 +173,16 @@ final class Media
             }
             if (!@copy($path, $originalFile)) {
                 throw new RuntimeException('Impossible d\'enregistrer l\'original.');
+            }
+        } elseif ($kind === 'video') {
+            // An MP4 file starts with a "ftyp" box: its type is at bytes 4 to 8.
+            $head = (string) file_get_contents($path, false, null, 0, 12);
+            if (substr($head, 4, 4) !== 'ftyp') {
+                throw new UserError('Ce fichier n\'est pas une vidéo MP4 valide.');
+            }
+            $webExt = 'mp4';
+            if (!@copy($path, self::publicDir() . '/' . $token . '.mp4')) {
+                throw new RuntimeException('Impossible d\'enregistrer la vidéo.');
             }
         } else {
             $head = (string) file_get_contents($path, false, null, 0, 5);
@@ -365,8 +377,8 @@ final class Media
     private static function deleteFiles(array $media, array $keepWidths = [], string $keepExt = ''): void
     {
         $dir = self::publicDir();
-        if ($media['kind'] === 'pdf') {
-            @unlink($dir . '/' . $media['token'] . '.pdf');
+        if ($media['kind'] === 'pdf' || $media['kind'] === 'video') {
+            @unlink($dir . '/' . $media['token'] . '.' . ($media['kind'] === 'pdf' ? 'pdf' : 'mp4'));
             return;
         }
         foreach (self::variants($media) as $w) {

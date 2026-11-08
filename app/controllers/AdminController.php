@@ -378,7 +378,7 @@ final class AdminController
                 if (self::wantsJson()) {
                     Http::json(['media' => Media::toJson((array) $media)]);
                 }
-                Session::flash('success', 'Fichier ajouté. Pensez à décrire l\'image (texte alternatif).');
+                Session::flash('success', $media['kind'] === 'pdf' ? 'Fichier ajouté.' : 'Fichier ajouté. Pensez à le décrire (pour les personnes aveugles).');
                 Http::redirect('/admin/medias/' . $media['id']);
             } catch (UserError $ex) {
                 if (self::wantsJson()) {
@@ -404,7 +404,7 @@ final class AdminController
         }
         Http::json([
             'media' => $list,
-            'limits' => ['image' => Config::maxBytes('image'), 'pdf' => Config::maxBytes('pdf')],
+            'limits' => ['image' => Config::maxBytes('image'), 'pdf' => Config::maxBytes('pdf'), 'video' => Config::maxBytes('video')],
         ]);
     }
 

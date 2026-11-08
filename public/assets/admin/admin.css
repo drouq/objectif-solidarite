@@ -292,3 +292,8 @@ code { font-size: 0.9em; background: var(--surface); padding: 0.05rem 0.3rem; bo
 .figures-table input[type="text"] { width: 100%; min-width: 6rem; }
 .figures-table .input-short { min-width: 3.5rem; }
 .figures-table .figure-new input[type="text"] { background: var(--surface); }
+
+/* Videos in the media library */
+.media-video { color: var(--blue-deep); background: var(--info-bg); }
+.media-video-preview { width: 100%; max-height: 22rem; background: #0b3f63; border-radius: var(--radius); }
+.video-editor { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 1rem; }

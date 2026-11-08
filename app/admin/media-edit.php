@@ -1,6 +1,8 @@
 <?php
 /** One media file: description, replace, usage, delete. @var array $media @var array $usage */
 $isImage = $media['kind'] === 'image';
+$isVideo = $media['kind'] === 'video';
+$accept = $isImage ? 'image/jpeg,image/png,image/webp' : ($isVideo ? 'video/mp4' : 'application/pdf');
 list($w, $h) = Media::displaySize($media);
 ?>
 <div class="title-row">
@@ -12,6 +14,8 @@ list($w, $h) = Media::displaySize($media);
   <div class="media-preview">
     <?php if ($isImage): ?>
       <img src="<?= e(Media::url($media, 960)) ?>" alt="" width="<?= $w ?>" height="<?= $h ?>">
+    <?php elseif ($isVideo): ?>
+      <video src="<?= e(Media::url($media)) ?>" controls preload="metadata" class="media-video-preview"></video>
     <?php else: ?>
       <span class="media-pdf media-pdf-large" aria-hidden="true">PDF</span>
     <?php endif; ?>
@@ -24,20 +28,20 @@ list($w, $h) = Media::displaySize($media);
     <?php if (!$isImage): ?>
     <div class="field">
       <label for="pdf-url">Adresse du fichier (pour un lien)</label>
-      <input id="pdf-url" type="text" readonly value="<?= e(absolute_url('/media/' . $media['token'] . '.pdf')) ?>">
+      <input id="pdf-url" type="text" readonly value="<?= e(absolute_url('/media/' . $media['token'] . ($isVideo ? '.mp4' : '.pdf'))) ?>">
     </div>
     <?php endif; ?>
   </div>
 
   <div class="media-forms">
-    <?php if ($isImage): ?>
+    <?php if ($isImage || $isVideo): ?>
     <form method="post" action="/admin/medias/<?= (int) $media['id'] ?>" class="panel">
       <?= csrf_field() ?>
       <h2>Description</h2>
       <div class="field">
-        <label for="alt">Texte alternatif</label>
+        <label for="alt"><?= $isVideo ? 'Description de la vidéo' : 'Texte alternatif' ?></label>
         <input id="alt" name="alt" type="text" maxlength="300" value="<?= e($media['alt']) ?>" aria-describedby="alt-help">
-        <p class="help" id="alt-help">Décrivez ce que montre l'image, en une phrase, pour les personnes qui ne la voient pas. Laissez vide si l'image est purement décorative.</p>
+        <p class="help" id="alt-help"><?= $isVideo ? 'Une phrase sur ce que montre la vidéo : elle est lue aux personnes aveugles avant la lecture.' : 'Décrivez ce que montre l\'image, en une phrase, pour les personnes qui ne la voient pas. Laissez vide si l\'image est purement décorative.' ?></p>
       </div>
       <button type="submit" class="btn btn-primary">Enregistrer</button>
     </form>
@@ -48,8 +52,8 @@ list($w, $h) = Media::displaySize($media);
       <h2>Remplacer le fichier</h2>
       <p class="help">Le nouveau fichier prend la place de l'ancien partout où il est utilisé. Les liens restent valables.</p>
       <div class="field">
-        <label for="replace-file">Nouveau fichier (<?= $isImage ? 'image JPG, PNG ou WebP' : 'PDF' ?>)</label>
-        <input id="replace-file" name="file" type="file" required accept="<?= $isImage ? 'image/jpeg,image/png,image/webp' : 'application/pdf' ?>">
+        <label for="replace-file">Nouveau fichier (<?= $isImage ? 'image JPG, PNG ou WebP' : ($isVideo ? 'vidéo MP4' : 'PDF') ?>)</label>
+        <input id="replace-file" name="file" type="file" required accept="<?= $accept ?>">
       </div>
       <button type="submit" class="btn btn-secondary">Remplacer</button>
     </form>

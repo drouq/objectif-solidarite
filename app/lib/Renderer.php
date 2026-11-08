@@ -65,6 +65,8 @@ final class Renderer
                 $html .= self::cards(is_array($block['cards'] ?? null) ? $block['cards'] : [], $seenH2 ? 'h3' : 'h2');
             } elseif ($type === 'embed') {
                 $html .= self::embed((string) ($block['url'] ?? ''));
+            } elseif ($type === 'video') {
+                $html .= self::video((int) ($block['media_id'] ?? 0), isset($block['poster_id']) ? (int) $block['poster_id'] : null);
             }
         }
         return $html;
@@ -198,6 +200,27 @@ final class Renderer
             . '<span>Lire la vidéo</span><small>La vidéo est hébergée par ' . e($provider) . '. Elle se charge quand vous cliquez.</small></button>'
             . '<noscript><a href="' . e($url) . '">Voir la vidéo sur ' . e($provider) . '</a></noscript>'
             . '</div></div>';
+    }
+
+    /**
+     * A video from the media library, played by the browser's own player.
+     * preload="none": nothing is downloaded until the visitor presses Play.
+     */
+    public static function video(int $mediaId, ?int $posterId): string
+    {
+        $video = self::media($mediaId);
+        if ($video === null || $video['kind'] !== 'video') {
+            return '';
+        }
+        $poster = self::media($posterId);
+        $label = trim((string) $video['alt']) !== '' ? (string) $video['alt'] : 'Vidéo';
+        $src = Media::url($video);
+        return '<div class="block block-embed"><div class="video video-file">'
+            . '<video controls playsinline preload="none" aria-label="' . e($label) . '"'
+            . ($poster !== null && $poster['kind'] === 'image' ? ' poster="' . e(Media::url($poster, 960)) . '"' : '') . '>'
+            . '<source src="' . e($src) . '" type="video/mp4">'
+            . '<a href="' . e($src) . '">Télécharger la vidéo (MP4, ' . e(Media::formatSize((int) $video['size_bytes'])) . ')</a>'
+            . '</video></div></div>';
     }
 
     /** Automatic list of the sub-pages of a page. */

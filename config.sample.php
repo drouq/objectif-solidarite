@@ -45,6 +45,8 @@ return [
     // Upload limits, in megabytes.
     'max_image_mb' => 10,
     'max_pdf_mb' => 20,
+    // Videos (MP4) are kept as sent: keep them short (a few minutes at most); use YouTube or Vimeo for long ones.
+    'max_video_mb' => 50,
 
     // Editors are signed out after this many hours without activity.
     'session_idle_hours' => 8,

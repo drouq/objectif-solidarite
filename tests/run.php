@@ -525,6 +525,57 @@ check('tracked files list is not empty', count($trackedFiles) > 50, (string) cou
 check('no name, domain or folder of the other site in tracked files', $leftovers === [], implode(', ', $leftovers));
 
 // ---------------------------------------------------------------------------
+echo "Videos from the media library\n";
+/** A tiny file with the structure of an MP4 (ftyp box, then data). */
+function writeTinyMp4(string $file, int $dataBytes = 2000): void
+{
+    $data = str_repeat("\x01\x02\x03\x04", (int) ceil($dataBytes / 4));
+    file_put_contents($file, pack('N', 24) . 'ftypisom' . pack('N', 512) . 'isommp41' . pack('N', 8 + strlen($data)) . 'mdat' . $data);
+}
+writeTinyMp4($work . '/clip.mp4');
+$video = Media::store($work . '/clip.mp4', 'clip.mp4', 'test');
+check('MP4 accepted as a video', $video['kind'] === 'video' && $video['web_ext'] === 'mp4');
+check('video kept as sent, in the public media folder', is_file(PUBLIC_PATH . '/media/' . $video['token'] . '.mp4')
+    && filesize(PUBLIC_PATH . '/media/' . $video['token'] . '.mp4') === filesize($work . '/clip.mp4'));
+check('video address', strpos(Media::url($video), '/media/' . $video['token'] . '.mp4?v=') === 0);
+file_put_contents($work . '/fake.mp4', str_repeat('x', 100));
+check('fake MP4 refused', throwsUserError(function () use ($work) {
+    Media::store($work . '/fake.mp4', 'fake.mp4', 'test');
+}));
+Config::override(['max_video_mb' => 0.0001]);
+check('video over the limit refused', throwsUserError(function () use ($work) {
+    Media::store($work . '/clip.mp4', 'clip.mp4', 'test');
+}));
+Config::override(['max_video_mb' => 50]);
+check('video limit is its own setting', Config::maxBytes('video') === 50 * 1024 * 1024);
+check('image cannot replace a video', throwsUserError(function () use ($work, $video) {
+    Media::store($work . '/new.jpg', 'x.jpg', 'test', (int) $video['id']);
+}));
+$poster = Media::store($work . '/new.jpg', 'couverture.jpg', 'test');
+list($vblocks, $verrors) = Pages::cleanBlocks((string) json_encode([
+    ['type' => 'video', 'media_id' => $video['id'], 'poster_id' => $poster['id']],
+    ['type' => 'video', 'media_id' => 0],
+]));
+check('video block kept, empty video block dropped', $verrors === [] && count($vblocks) === 1 && $vblocks[0] === ['type' => 'video', 'media_id' => (int) $video['id'], 'poster_id' => (int) $poster['id']], json_encode($vblocks));
+list(, $verrors) = Pages::cleanBlocks((string) json_encode([['type' => 'video', 'media_id' => $poster['id']]]));
+check('video block refuses an image', $verrors !== []);
+check('video and cover counted as used', array_values(array_intersect([(int) $video['id'], (int) $poster['id']], Pages::mediaIds(['header_media_id' => null, 'blocks' => $vblocks]))) === [(int) $video['id'], (int) $poster['id']]);
+Media::setAlt((int) $video['id'], 'Des élèves dans la cour');
+$vhtml = Renderer::blocks($vblocks);
+check('video shown with the browser player, nothing loaded before Play', strpos($vhtml, '<video controls playsinline preload="none" aria-label="Des élèves dans la cour" poster="/media/' . $poster['token']) !== false
+    && strpos($vhtml, '<source src="/media/' . $video['token'] . '.mp4?v=') !== false && strpos($vhtml, 'type="video/mp4"') !== false, $vhtml);
+check('video block falls back to a download link', strpos($vhtml, 'Télécharger la vidéo (MP4,') !== false);
+Media::delete((int) $video['id']);
+check('deleted video file removed', !is_file(PUBLIC_PATH . '/media/' . $video['token'] . '.mp4'));
+// The renderer keeps media in memory for one page request: start a fresh one, as a new visit does.
+$cacheProp = new ReflectionProperty('Renderer', 'mediaCache');
+if (PHP_VERSION_ID < 80100) {
+    $cacheProp->setAccessible(true); // needed before PHP 8.1, deprecated in 8.5
+}
+$cacheProp->setValue(null, []);
+check('deleted video no longer shown', strpos(Renderer::blocks($vblocks), '<video') === false);
+
+// ---------------------------------------------------------------------------
 // Content import, key figures, markers, tables (synthetic fixtures only, never the real package).
 require __DIR__ . '/import-tests.php';
 restore_error_handler();
@@ -863,6 +914,24 @@ try {
         $lm = preg_match('/^Last-Modified:\s*(.+)$/mi', $img['headers'], $lmm) ? trim($lmm[1]) : '';
         check('git layout: unchanged image answers 304', $gitRequest('GET', (string) $upJson['media']['thumb'], [], ['If-Modified-Since: ' . $lm])['status'] === 304);
     }
+    // A video uploaded like any file, then read in parts (byte ranges), as browsers and iPhones do.
+    writeTinyMp4($work . '/range.mp4', 5000);
+    $vSize = filesize($work . '/range.mp4');
+    $vUp = json_decode($gitRequest('POST', '/admin/medias?format=json', ['csrf' => $gitToken, 'alt' => 'Une vidéo', 'file' => new CURLFile($work . '/range.mp4', 'video/mp4', 'clip.mp4')], ['Accept: application/json'])['body'], true);
+    check('git layout: video uploaded by HTTP', ($vUp['media']['kind'] ?? '') === 'video', json_encode($vUp));
+    $vUrl = (string) preg_replace('/\?v=\d+$/', '', (string) ($vUp['media']['url'] ?? ''));
+    $full = $gitRequest('GET', $vUrl);
+    check('git layout: video served whole, ranges announced', $full['status'] === 200 && strlen($full['body']) === $vSize
+        && stripos($full['headers'], 'Content-Type: video/mp4') !== false && stripos($full['headers'], 'Accept-Ranges: bytes') !== false);
+    $part = $gitRequest('GET', $vUrl, [], ['Range: bytes=0-99']);
+    check('git layout: first 100 bytes (206)', $part['status'] === 206 && strlen($part['body']) === 100
+        && stripos($part['headers'], 'Content-Range: bytes 0-99/' . $vSize) !== false && substr($part['body'], 4, 4) === 'ftyp', $part['headers']);
+    $tail = $gitRequest('GET', $vUrl, [], ['Range: bytes=-10']);
+    check('git layout: last 10 bytes (206)', $tail['status'] === 206 && strlen($tail['body']) === 10
+        && stripos($tail['headers'], 'Content-Range: bytes ' . ($vSize - 10) . '-' . ($vSize - 1) . '/' . $vSize) !== false);
+    $open = $gitRequest('GET', $vUrl, [], ['Range: bytes=100-']);
+    check('git layout: from byte 100 to the end (206)', $open['status'] === 206 && strlen($open['body']) === $vSize - 100);
+    check('git layout: impossible range refused (416)', $gitRequest('GET', $vUrl, [], ['Range: bytes=' . ($vSize + 10) . '-'])['status'] === 416);
     check('git layout: bad media name is 404', $gitRequest('GET', '/media/../config.php')['status'] === 404 && $gitRequest('GET', '/media/abc.php')['status'] === 404);
     $zipResponse = $gitRequest('POST', '/admin/sauvegarde', ['csrf' => $gitToken]);
     check('git layout: backup includes media', $zipResponse['status'] === 200 && strpos($zipResponse['body'], 'media/') !== false);

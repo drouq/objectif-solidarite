@@ -22,6 +22,7 @@ final class Config
         'dev_login' => false,
         'max_image_mb' => 10,
         'max_pdf_mb' => 20,
+        'max_video_mb' => 50,
         'session_idle_hours' => 8,
         'check_enabled' => true,
     ];
@@ -128,7 +129,7 @@ final class Config
 
     public static function maxBytes(string $kind): int
     {
-        $mb = $kind === 'pdf' ? self::get('max_pdf_mb') : self::get('max_image_mb');
+        $mb = $kind === 'pdf' ? self::get('max_pdf_mb') : ($kind === 'video' ? self::get('max_video_mb') : self::get('max_image_mb'));
         return (int) round(((float) $mb) * 1024 * 1024);
     }
 }

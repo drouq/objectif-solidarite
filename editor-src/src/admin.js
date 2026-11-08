@@ -143,7 +143,7 @@ function buildPicker() {
         const button = el('button', { type: 'button', class: 'picker-item', onclick: () => choose(m) }, [
           m.kind === 'image'
             ? el('img', { src: m.thumb, alt: '', loading: 'lazy', width: '160', height: '110' })
-            : el('span', { class: 'media-pdf', 'aria-hidden': 'true', text: 'PDF' }),
+            : el('span', { class: m.kind === 'video' ? 'media-pdf media-video' : 'media-pdf', 'aria-hidden': 'true', text: m.kind === 'video' ? 'MP4' : 'PDF' }),
           el('span', { class: 'picker-name', text: label }),
         ]);
         grid.appendChild(el('li', null, [button]));
@@ -157,7 +157,7 @@ function buildPicker() {
     const file = fileInput.files && fileInput.files[0];
     if (!file) { status.textContent = 'Choisissez d\'abord un fichier.'; fileInput.focus(); return; }
     uploadButton.disabled = true;
-    status.textContent = 'Envoi en cours… (les grandes photos peuvent prendre quelques secondes)';
+    status.textContent = state.kind === 'video' ? 'Envoi en cours… (une vidéo peut prendre une minute ou deux)' : 'Envoi en cours… (les grandes photos peuvent prendre quelques secondes)';
     try {
       const media = await uploadMedia(file, altInput.value);
       fileInput.value = '';
@@ -175,9 +175,10 @@ function buildPicker() {
       state.kind = kind;
       state.onSelect = onSelect;
       state.opener = opener || document.activeElement;
-      title.textContent = kind === 'pdf' ? 'Choisir un PDF' : 'Choisir une image';
-      fileInput.setAttribute('accept', kind === 'pdf' ? 'application/pdf' : 'image/jpeg,image/png,image/webp');
+      title.textContent = kind === 'pdf' ? 'Choisir un PDF' : (kind === 'video' ? 'Choisir une vidéo' : 'Choisir une image');
+      fileInput.setAttribute('accept', kind === 'pdf' ? 'application/pdf' : (kind === 'video' ? 'video/mp4' : 'image/jpeg,image/png,image/webp'));
       dialog.querySelector('.picker-alt-field').hidden = kind === 'pdf';
+      dialog.querySelector('.picker-alt-field label').textContent = kind === 'video' ? 'Description de la vidéo' : 'Description de l\x27image';
       dialog.showModal();
       refresh(false);
       closeButton.focus();
@@ -194,7 +195,9 @@ function openPicker(kind, onSelect, opener) {
 // Media field (one image chosen from the library)
 // ---------------------------------------------------------------------------
 
-function createMediaField(container, input, label) {
+function createMediaField(container, input, label, kind) {
+  const isVideo = kind === 'video';
+  const noun = isVideo ? 'vidéo' : 'image';
   const preview = el('div', { class: 'media-field-preview' });
   const chooseButton = el('button', { type: 'button', class: 'btn btn-secondary btn-small' });
   const clearButton = el('button', { type: 'button', class: 'button-link danger-link', text: 'Retirer' });
@@ -207,23 +210,25 @@ function createMediaField(container, input, label) {
     const media = id ? mediaStore[id] : null;
     preview.innerHTML = '';
     if (media) {
-      preview.appendChild(el('img', { src: media.thumb, alt: '', width: '160', height: '110' }));
-      preview.appendChild(el('span', { class: 'media-field-name', text: media.name || 'Image' }));
+      preview.appendChild(isVideo
+        ? el('span', { class: 'media-pdf media-video', 'aria-hidden': 'true', text: 'MP4' })
+        : el('img', { src: media.thumb, alt: '', width: '160', height: '110' }));
+      preview.appendChild(el('span', { class: 'media-field-name', text: media.name || (isVideo ? 'Vidéo' : 'Image') }));
       chooseButton.textContent = 'Changer';
       chooseButton.setAttribute('aria-label', 'Changer ' + label);
       clearButton.hidden = false;
       clearButton.setAttribute('aria-label', 'Retirer ' + label);
     } else {
-      preview.appendChild(el('span', { class: 'media-field-empty', text: id ? 'Image introuvable' : 'Aucune image' }));
-      chooseButton.textContent = 'Choisir une image';
+      preview.appendChild(el('span', { class: 'media-field-empty', text: id ? (isVideo ? 'Vidéo introuvable' : 'Image introuvable') : (isVideo ? 'Aucune vidéo' : 'Aucune image') }));
+      chooseButton.textContent = isVideo ? 'Choisir une vidéo' : 'Choisir une image';
       chooseButton.setAttribute('aria-label', 'Choisir ' + label);
       clearButton.hidden = !id;
     }
   }
   chooseButton.addEventListener('click', () => {
-    openPicker('image', (media) => { input.value = String(media.id); render(); markDirty(); announce('Image choisie : ' + (media.name || '')); }, chooseButton);
+    openPicker(isVideo ? 'video' : 'image', (media) => { input.value = String(media.id); render(); markDirty(); announce((isVideo ? 'Vidéo choisie : ' : 'Image choisie : ') + (media.name || '')); }, chooseButton);
   });
-  clearButton.addEventListener('click', () => { input.value = ''; render(); markDirty(); chooseButton.focus(); announce('Image retirée'); });
+  clearButton.addEventListener('click', () => { input.value = ''; render(); markDirty(); chooseButton.focus(); announce(noun.charAt(0).toUpperCase() + noun.slice(1) + ' retirée'); });
   render();
 }
 
@@ -460,7 +465,7 @@ function createRichText(container, html) {
 // Blocks
 // ---------------------------------------------------------------------------
 
-const BLOCK_NAMES = { text: 'Texte', cards: 'Grille de cartes', embed: 'Vidéo' };
+const BLOCK_NAMES = { text: 'Texte', cards: 'Grille de cartes', embed: 'Vidéo YouTube ou Vimeo', video: 'Vidéo de la médiathèque' };
 
 function videoInfo(url) {
   const value = (url || '').trim();
@@ -585,6 +590,26 @@ function createEmbedBody(body, data) {
   };
 }
 
+function createVideoBody(body, data) {
+  const id = nextId('video');
+  const videoInput = el('input', { type: 'hidden', value: data.media_id ? String(data.media_id) : '' });
+  const posterInput = el('input', { type: 'hidden', value: data.poster_id ? String(data.poster_id) : '' });
+  const videoBox = el('div', { class: 'media-field' }, [videoInput]);
+  const posterBox = el('div', { class: 'media-field' }, [posterInput]);
+  body.appendChild(el('div', { class: 'video-editor' }, [
+    el('div', { class: 'field' }, [el('span', { class: 'label', id: id + '-v', text: 'Vidéo (MP4)' }), videoBox]),
+    el('div', { class: 'field' }, [el('span', { class: 'label', id: id + '-p' }, ['Image de couverture ', el('span', { class: 'help-inline', text: '(conseillée)' })]), posterBox]),
+  ]));
+  body.appendChild(el('p', { class: 'help', text: 'La vidéo est hébergée par le site : rien n\x27est téléchargé tant que le visiteur n\x27appuie pas sur Lecture. L\x27image de couverture s\x27affiche avant la lecture. Pour une vidéo longue, préférez un bloc YouTube ou Vimeo.' }));
+  createMediaField(videoBox, videoInput, 'la vidéo', 'video');
+  createMediaField(posterBox, posterInput, 'l\x27image de couverture', 'image');
+  return {
+    getData() { return { type: 'video', media_id: videoInput.value ? parseInt(videoInput.value, 10) : null, poster_id: posterInput.value ? parseInt(posterInput.value, 10) : null }; },
+    isEmpty() { return !videoInput.value; },
+    focus() { videoBox.querySelector('button').focus(); },
+  };
+}
+
 function initBlockEditor(root) {
   const dataNode = document.getElementById('blocks-data');
   let initial = [];
@@ -628,6 +653,7 @@ function initBlockEditor(root) {
     let content;
     if (type === 'text') content = createRichText(body, data.html || '');
     else if (type === 'cards') content = createCardsBody(body, data);
+    else if (type === 'video') content = createVideoBody(body, data);
     else content = createEmbedBody(body, data);
     const block = { type, section, title, up, down, remove, content };
     up.addEventListener('click', () => moveBlock(block, -1, up));
@@ -663,7 +689,7 @@ function initBlockEditor(root) {
     if (!button.disabled) button.focus(); else (delta < 0 ? block.down : block.up).focus();
   }
 
-  [['text', '+ Texte'], ['cards', '+ Grille de cartes'], ['embed', '+ Vidéo (YouTube, Vimeo)']].forEach((pair) => {
+  [['text', '+ Texte'], ['cards', '+ Grille de cartes'], ['video', '+ Vidéo de la médiathèque'], ['embed', '+ Vidéo YouTube ou Vimeo']].forEach((pair) => {
     addBar.appendChild(el('button', {
       type: 'button',
       class: 'btn btn-secondary btn-small',

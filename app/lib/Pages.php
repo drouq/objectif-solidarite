@@ -380,6 +380,24 @@ final class Pages
                     $errors[] = 'Bloc ' . $number . ' : seules les vidéos YouTube et Vimeo sont acceptées.';
                 }
                 $blocks[] = ['type' => 'embed', 'url' => mb_substr($url, 0, 500, 'UTF-8')];
+            } elseif ($block['type'] === 'video') {
+                // A video from the media library, with an optional cover image.
+                $mediaId = (int) ($block['media_id'] ?? 0);
+                if ($mediaId === 0) {
+                    continue; // empty block
+                }
+                $video = Media::find($mediaId);
+                if ($video === null || $video['kind'] !== 'video') {
+                    $errors[] = 'Bloc ' . $number . ' : choisissez une vidéo de la médiathèque.';
+                    continue;
+                }
+                $posterId = (int) ($block['poster_id'] ?? 0);
+                $poster = $posterId > 0 ? Media::find($posterId) : null;
+                if ($posterId > 0 && ($poster === null || $poster['kind'] !== 'image')) {
+                    $errors[] = 'Bloc ' . $number . ' : l\'image de couverture est introuvable.';
+                    $posterId = 0;
+                }
+                $blocks[] = ['type' => 'video', 'media_id' => $mediaId, 'poster_id' => $posterId > 0 ? $posterId : null];
             }
         }
         return [$blocks, $errors];
@@ -465,6 +483,12 @@ final class Pages
                         if ($pdfId !== null) {
                             $ids[] = (int) $pdfId;
                         }
+                    }
+                }
+            } elseif (($block['type'] ?? '') === 'video') {
+                foreach (['media_id', 'poster_id'] as $field) {
+                    if (!empty($block[$field])) {
+                        $ids[] = (int) $block[$field];
                     }
                 }
             } elseif (($block['type'] ?? '') === 'cards') {
