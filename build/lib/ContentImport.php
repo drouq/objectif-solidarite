@@ -187,7 +187,21 @@ final class ContentImport
                 $this->mediaCsv[self::normPath($row['fichier'])] = $row;
             }
         }
+        // media-cleared.txt: files whose rights and consent Daniel has confirmed, one reference
+        // per line (as written in the pages or in 05-media.csv). They are imported despite a flag.
+        $cleared = $this->source . '/media-cleared.txt';
+        if (is_file($cleared)) {
+            foreach (preg_split('/\R/', (string) file_get_contents($cleared)) ?: [] as $line) {
+                $line = trim((string) preg_replace('/^\xEF\xBB\xBF/', '', $line));
+                if ($line !== '' && $line[0] !== '#') {
+                    $this->cleared[self::normPath($line)] = true;
+                }
+            }
+        }
     }
+
+    /** @var array<string,bool> normalised references listed in media-cleared.txt */
+    public $cleared = [];
 
     private function findHome(): void
     {
@@ -519,10 +533,14 @@ final class ContentImport
             $item['alt'] = $csv !== null ? trim((string) ($csv['texte_alternatif_fr'] ?? '')) : '';
             $rights = $csv !== null ? trim((string) ($csv['droits_ou_consentement'] ?? '') . ' ' . (string) ($csv['page_suggeree'] ?? '')) : '';
             $rightsCheck = (string) preg_replace("/pas d['’]IBAN/iu", '', $rights);
-            if ($csv !== null && preg_match(self::RIGHTS_FLAGS, $rightsCheck)) {
+            $isCleared = isset($this->cleared[self::normPath($ref)]) || isset($this->cleared[self::normPath(ltrim($ref, '/'))]);
+            if ($isCleared && $csv !== null && preg_match(self::RIGHTS_FLAGS, $rightsCheck)) {
+                $this->warn($ref, 'Imported although 05-media.csv flags it (' . self::short($rights, 90) . '): rights confirmed in media-cleared.txt.');
+            }
+            if (!$isCleared && $csv !== null && preg_match(self::RIGHTS_FLAGS, $rightsCheck)) {
                 $item['status'] = 'skipped';
                 $item['reason'] = 'rights or consent: ' . self::short($rights, 160);
-            } elseif ($csv === null && !$isPdf) {
+            } elseif ($csv === null && !$isPdf && !$isCleared) {
                 $item['status'] = 'skipped';
                 $item['reason'] = 'not described in 05-media.csv (no alt text, rights unknown)';
             } else {

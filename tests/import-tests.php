@@ -285,6 +285,11 @@ copy($fixture . '/media/pdf/doc.pdf', $fixture . '/media/autre/doc.pdf');
 $twice = new ContentImport($fixture);
 $twice->validate();
 check('validation rule MEDIA-AMBIGUOUS (two files with the same name)', in_array('MEDIA-AMBIGUOUS', $codes($twice), true));
+writeFixture($fixture, $basePages, ['media-cleared.txt' => "# droits confirmés\nphotos/b.jpg\n"]);
+$cleared = new ContentImport($fixture);
+$cleared->validate();
+check('media-cleared.txt: a flagged photo is imported, with a warning', $cleared->failures() === [] && $cleared->media['photos/b.jpg']['status'] === 'ok'
+    && strpos(json_encode($cleared->warnings, JSON_UNESCAPED_UNICODE), 'media-cleared.txt') !== false);
 $missingPdf = $basePages;
 $missingPdf['04-projet-b.md'][1] .= "\n[Le journal](/files/absent.pdf)\n";
 writeFixture($fixture, $missingPdf);
