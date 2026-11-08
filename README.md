@@ -68,7 +68,7 @@ In FileZilla, at the top of your FTP space (next to the other sites' folders), c
 
 1. OVH Control Panel: **Web Cloud** > **Hébergements** > your plan > **Multisite** tab > **Ajouter un domaine ou un sous-domaine**.
 2. Domain: `test.objectif-solidarite.org`. **Dossier racine**: `os`. Tick **SSL**. Confirm.
-3. **The DNS of `objectif-solidarite.org` is managed by Wix** (nameservers `ns2.wixdns.net` and `ns3.wixdns.net`), so OVH's "automatic DNS configuration" has no effect. Add the record at Wix instead:
+3. **The domain is registered at OVH, but its DNS servers are Wix's** (OVH > **Noms de domaine** > `objectif-solidarite.org` > **Serveurs DNS**: `ns2.wixdns.net`, `ns3.wixdns.net`). While that is so, OVH's DNS zone (and its "automatic DNS configuration") is ignored. Add the record at Wix instead:
    - In OVH, note the hosting's addresses: **Hébergements** > your plan > **Informations générales** > **IPv4** and **IPv6** (in November 2026 the other site on the plan answered on `213.186.33.19` and `2001:41d0:1:1b00:213:186:33:19`).
    - In Wix: **Domains** > `objectif-solidarite.org` > **Manage DNS records**. Under **A (Host)**, add host `test` pointing to the IPv4. If Wix offers **AAAA**, add host `test` pointing to the IPv6. Change nothing else.
    - Check that it works with `nslookup test.objectif-solidarite.org 8.8.8.8`: it must show the OVH address.
