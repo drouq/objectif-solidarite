@@ -68,10 +68,12 @@ In FileZilla, at the top of your FTP space (next to the other sites' folders), c
 
 1. OVH Control Panel: **Web Cloud** > **Hébergements** > your plan > **Multisite** tab > **Ajouter un domaine ou un sous-domaine**.
 2. Domain: `test.objectif-solidarite.org`. **Dossier racine**: `os`. Tick **SSL**. Confirm.
-3. **The domain is registered at OVH, but its DNS servers are Wix's** (OVH > **Noms de domaine** > `objectif-solidarite.org` > **Serveurs DNS**: `ns2.wixdns.net`, `ns3.wixdns.net`). While that is so, OVH's DNS zone (and its "automatic DNS configuration") is ignored. Add the record at Wix instead:
-   - In OVH, note the hosting's addresses: **Hébergements** > your plan > **Informations générales** > **IPv4** and **IPv6** (in November 2026 the other site on the plan answered on `213.186.33.19` and `2001:41d0:1:1b00:213:186:33:19`).
-   - In Wix: **Domains** > `objectif-solidarite.org` > **Manage DNS records**. Under **A (Host)**, add host `test` pointing to the IPv4. If Wix offers **AAAA**, add host `test` pointing to the IPv6. Change nothing else.
-   - Check that it works with `nslookup test.objectif-solidarite.org 8.8.8.8`: it must show the OVH address.
+3. **DNS.** The domain is registered at OVH and, since 8 November 2026, uses OVH's DNS servers (`dns14.ovh.net`, `ns14.ovh.net`; OVH > **Noms de domaine** > `objectif-solidarite.org` > **Serveurs DNS**). So the records live in OVH's **Zone DNS** tab, and the "automatic DNS configuration" of step 2 writes them there. The zone must contain:
+   - `test` **A** `213.186.33.19` and `test` **AAAA** `2001:41d0:1:1b00:213:186:33:19` (the hosting's addresses: **Hébergements** > your plan > **Informations générales** > **IPv4** / **IPv6**);
+   - the records that keep the Wix site and mail working until go-live: `@` **A** to Wix (`23.236.62.147`, or Wix's current `185.230.63.107`, `.171`, `.186`), `www` **CNAME** to Wix (`www33.wixdns.net.` or `cdn3.wixdns.net.`), and the **MX** records `mx1.ovh.net`, `mx2.ovh.net`, `mxb.ovh.net`.
+   - **Never use "Réinitialiser la zone"**: while `objectif-solidarite.org` is attached to another folder in Multisite, a reset would point the domain at the wrong site and could remove the mail records.
+   - Check with `nslookup test.objectif-solidarite.org 8.8.8.8`: it must show the OVH address. After a change of DNS servers this takes up to 48 hours; a new record in the zone, minutes to a few hours.
+   - (Before 8 November 2026 the DNS servers were Wix's, `ns2.wixdns.net` and `ns3.wixdns.net`; then the OVH zone was ignored and records had to be added in Wix's DNS screen.)
 4. Once the record works, OVH can issue the certificate. If the SSL column of the Multisite line stays inactive, use that line's **...** > **Regénérer le certificat SSL** (or enable SSL). Wait until `https://test.objectif-solidarite.org` opens without a certificate warning (minutes to a few hours). **Informations générales** > **Certificat SSL** should say "Oui".
 
 ### 2.3 Create the Google sign-in client
@@ -121,7 +123,14 @@ If OVH answers "Git could not be enabled: quota is reached for VCS websites", th
    ```
 
    Replace `LOGIN` and `SERVER` with the values from step 2, for example `monlogin@ssh.cluster031.hosting.ovh.net:` (keep the final `:`, it means "my home folder"). Left as they are, `scp` answers "Could not resolve hostname server". The folders `os` and `os-private` you created in step 2.1 receive the files.
-4. Skip section 3, step 5: the content is already uploaded. Go on with step 2.7.
+4. **Set the file permissions.** Files copied from Windows can arrive with permissions Apache cannot read: the site then answers **403 "Server unable to read htaccess file"**. Set OVH's usual values (folders 705, files 604) in one command (it asks for the password again):
+
+   ```bash
+   ssh LOGIN@SERVER "find os os-private -type d -exec chmod 705 {} + ; find os os-private -type f -exec chmod 604 {} +"
+   ```
+
+   With FileZilla instead: right-click `os` > **File permissions...** > `705`, tick **Recurse into subdirectories** > **Apply to directories only**; again with `604` > **Apply to files only**. Same for `os-private`. Do this after every upload.
+5. Skip section 3, step 5: the content is already uploaded. Go on with step 2.7.
 
 Without `scp` (SSH not enabled on the plan), upload the same two folders with FileZilla: **Server** > **Force showing hidden files** first, so the `.htaccess` files are sent.
 
@@ -215,14 +224,16 @@ At go-live you add the real address to the same client ([section 5](#5-go-live-o
 
 Only after you have approved the staging site.
 
-1. **Write down the current DNS records** of `objectif-solidarite.org` (OVH: **Web Cloud** > **Noms de domaine** > `objectif-solidarite.org` > **Zone DNS**, or Wix's DNS screen if the domain is managed there). Take a screenshot. You need them to roll back.
-2. **Check mail records first.** If the zone has `MX` records (or `TXT` records such as SPF), e-mail for the domain is in use. Do not touch them, now or later. The association's address is a Gmail address, so it does not depend on this domain.
+Do it at a quiet time: between steps 4 and 9, visitors may briefly see a certificate warning.
+
+1. **Write down the current DNS records.** OVH: **Web Cloud** > **Noms de domaine** > `objectif-solidarite.org` > **Zone DNS**. Take a screenshot. The ones you need to roll back are `@` **A** (Wix: `23.236.62.147` or `185.230.63.107`, `.171`, `.186`) and `www` **CNAME** (Wix: `www33.wixdns.net.` or `cdn3.wixdns.net.`).
+2. **Leave the mail records alone**, now and later: the **MX** records (`mx1.ovh.net`, `mx2.ovh.net`, `mxb.ovh.net`) and the **TXT** SPF record. The association's address is a Gmail address and does not depend on them, but they may be used. Never use **Réinitialiser la zone**.
 3. **Detach the domain from `fred`.** In the Multisite tab, `objectif-solidarite.org` is currently attached to another site's folder (`fred`). Open that line > **...** > **Modifier le domaine** and remove it (or delete that line). Do the same for `www.objectif-solidarite.org` if listed. This does not affect the other site's own domain.
-4. **Attach it to `os`.** **Ajouter un domaine ou un sous-domaine**: `objectif-solidarite.org`, **Dossier racine** `os`, tick **SSL**, and tick **Créer également le sous-domaine www**. If OVH asks whether to change the DNS, accept only the `A`/`AAAA` (and `CNAME` for `www`) changes.
-5. **Git.** If OVH asks for the Git settings on the new line, give the same repository and branch, then copy the new webhook URL into GitHub (section 2.5, step 3).
+4. **Attach it to `os`.** **Ajouter un domaine ou un sous-domaine** (existing OVHcloud domain): `objectif-solidarite.org`, **Dossier racine** `os`, tick **SSL**, and the **www** sub-domain. With **automatic DNS configuration**, OVH points `@` (and `www`) at the hosting in the zone. If you choose manual configuration, edit the zone yourself: `@` **A** `213.186.33.19`, `@` **AAAA** `2001:41d0:1:1b00:213:186:33:19`, and replace the `www` **CNAME** to Wix by `www` **CNAME** `objectif-solidarite.org.` (or A/AAAA with the same addresses). Leave every other record as it is.
+5. **Git.** Only if OVH Git is used for this site: give the same repository and branch, then copy the new webhook URL into GitHub (section 2.5, step 3). With the upload route (2.5 bis), there is nothing to do: the code is already in `os/`.
 6. **Google client.** In the Google Cloud console, open the client and add the redirect URI `https://objectif-solidarite.org/admin/auth/callback`. Keep the test one for now.
 7. **config.php.** Change `'base_url' => 'https://objectif-solidarite.org',` and upload `config.php` again into `os-private/`.
-8. **DNS.** If the domain's DNS still points to Wix, change only the `A` record of `objectif-solidarite.org` and the `www` record to the values OVH shows on the Multisite page. Do not touch `MX`, `TXT` or other records. Changes take from minutes to 24 hours.
+8. **Wait for DNS.** Check with `nslookup objectif-solidarite.org 8.8.8.8`: it must show `213.186.33.19`. Usually minutes, at most a few hours (the zone's TTL).
 9. **SSL.** Wait until `https://objectif-solidarite.org` opens without a warning (Multisite: the SSL column says active). Then visitors on `www.` are sent to the bare address automatically.
 10. **Check**, on the real address: the home page, a project page, `/mafé` and `/contact-8` (redirects), `/sitemap.xml`, `/robots.txt`, and signing in at `/admin`.
 11. **Search engines.** In Google Search Console, add the property `https://objectif-solidarite.org` and submit `https://objectif-solidarite.org/sitemap.xml`.
@@ -246,7 +257,11 @@ tools/php85/php.exe build/prepare-upload.php
 scp -r build/upload/os LOGIN@SERVER:
 ```
 
-This overwrites the program files in `os/`. A file deleted from the code stays on the server; that is harmless. Then open the site once (step 3 above).
+```bash
+ssh LOGIN@SERVER "find os -type d -exec chmod 705 {} + ; find os -type f -exec chmod 604 {} +"
+```
+
+This overwrites the program files in `os/` and sets their permissions (section 2.5 bis, step 4). A file deleted from the code stays on the server; that is harmless. Then open the site once (step 3 above).
 
 Before a big update: **Admin** > **Sauvegarde** > download a backup.
 
@@ -262,11 +277,11 @@ git revert --no-edit HEAD
 git push
 ```
 
-OVH deploys the previous code within a minute. Database changes made by the update stay (migrations only add tables or columns, which older code ignores).
+OVH deploys the previous code within a minute. Without OVH Git, send it yourself after the revert: the three commands of section 6 ("Without OVH Git"). Database changes made by the update stay (migrations only add tables or columns, which older code ignores).
 
 **Content was damaged.** For one page: **Pages** > the page > **Historique** > **Restaurer**. For the whole site: restore a backup ([section 8](#8-backups-and-restoring)).
 
-**Go-live went wrong.** Put back the DNS records you wrote down in section 5, step 1. Wix answers again as soon as DNS has updated (minutes to 24 hours). The staging site keeps working on `test.objectif-solidarite.org` meanwhile.
+**Go-live went wrong.** In OVH's **Zone DNS**, put back the two records you wrote down in section 5, step 1: `@` **A** to Wix (delete the `@` **AAAA** to OVH) and `www` **CNAME** to Wix. Wix answers again as soon as DNS has updated (minutes to a few hours), as long as the Wix subscription is still active. The staging site keeps working on `test.objectif-solidarite.org` meanwhile.
 
 ## 8. Backups and restoring
 
