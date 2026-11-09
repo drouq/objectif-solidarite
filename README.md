@@ -391,6 +391,7 @@ cd screenshots-src && npm install && node shoot.mjs http://localhost:8200 ../rev
 - **Privacy**: no analytics, no outside fonts or scripts, no cookies for visitors (so no cookie banner). Videos come from `youtube-nocookie.com` or Vimeo and only load when the visitor clicks them. Only signed-in editors get a session cookie.
 - **Videos**: two kinds of video block. **Vidéo de la médiathèque** plays an MP4 uploaded to the Médiathèque with the browser's own player (nothing is downloaded until the visitor presses Play; add a cover image and a description). Keep these short: the limit is `max_video_mb` in `config.php` (50 MB by default), and the server's upload limit must be at least as high (`check.php` shows it). **Vidéo YouTube ou Vimeo** is better for long videos.
 - **Errors** are written to `os-private/data/logs/php-errors.log`, never shown to visitors.
+- **Test site out of search engines**: while `base_url` starts with `https://test.`, every page is sent with "noindex" and `robots.txt` closes the whole site. Go-live changes `base_url` (section 5), which lifts this on its own.
 - **Two editors on the same page**: if someone saved the page while you were editing it, your save is refused with a message, so nobody overwrites the other's work by mistake.
 - **Legal pages** (mentions légales, privacy): create a normal page, untick "Afficher dans le menu principal", tick "Afficher dans le pied de page".
 - **Never edit files in `os/` by FTP**: the next deployment would overwrite them, or block on a conflict.

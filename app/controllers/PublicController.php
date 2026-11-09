@@ -254,6 +254,10 @@ final class PublicController
     private static function robots(): void
     {
         header('Content-Type: text/plain; charset=utf-8');
+        if (Config::isTestSite()) {
+            echo "User-agent: *\nDisallow: /\n";
+            return;
+        }
         echo "User-agent: *\nAllow: /\nDisallow: /admin\n\nSitemap: " . absolute_url('/sitemap.xml') . "\n";
     }
 }

@@ -548,6 +548,11 @@ check('video over the limit refused', throwsUserError(function () use ($work) {
 }));
 Config::override(['max_video_mb' => 50]);
 check('video limit is its own setting', Config::maxBytes('video') === 50 * 1024 * 1024);
+Config::override(['base_url' => 'https://test.example.org']);
+check('a test. address is a test site (kept out of search engines)', Config::isTestSite());
+Config::override(['base_url' => 'https://example.org']);
+check('the real address is not a test site', !Config::isTestSite());
+Config::override(['base_url' => 'http://localhost:8000']);
 check('image cannot replace a video', throwsUserError(function () use ($work, $video) {
     Media::store($work . '/new.jpg', 'x.jpg', 'test', (int) $video['id']);
 }));

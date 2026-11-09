@@ -127,6 +127,16 @@ final class Config
         return rtrim($url, '/');
     }
 
+    /**
+     * A test site (base_url on a "test." address) must stay out of search engines:
+     * its pages may still hold internal questions. Go-live changes base_url, which lifts this.
+     */
+    public static function isTestSite(): bool
+    {
+        $host = strtolower((string) parse_url((string) self::get('base_url'), PHP_URL_HOST));
+        return starts_with($host, 'test.');
+    }
+
     public static function maxBytes(string $kind): int
     {
         $mb = $kind === 'pdf' ? self::get('max_pdf_mb') : ($kind === 'video' ? self::get('max_video_mb') : self::get('max_image_mb'));

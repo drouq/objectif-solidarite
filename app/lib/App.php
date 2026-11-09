@@ -39,6 +39,9 @@ final class App
                 return;
             }
             Http::sendSecurityHeaders($isAdmin);
+            if (Config::isTestSite()) {
+                header('X-Robots-Tag: noindex, nofollow');
+            }
             // Always run migrations: they do nothing when the database is up to date.
             Migrations::run();
 
