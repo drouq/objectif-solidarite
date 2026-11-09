@@ -108,6 +108,8 @@ The repository is public and read over HTTPS, so OVH needs no key. Never commit 
 
 If OVH answers "Git could not be enabled: quota is reached for VCS websites", the plan has no Git slot left. The site runs the same without Git; only updates are by hand.
 
+To free a slot used by another site instead: on that site's Multisite line, **...** > remove the Git configuration (keep its files; that site is then updated by hand) and delete its webhook on GitHub. OVH links Git only to an **empty** folder, so in FileZilla rename `os` to `os-scp` (backup) and create a new empty `os`; leave `os-private` as it is. Then follow section 2.5. Once the site works, delete `os-scp`.
+
 1. On your computer, prepare the folders (code from the last commit, plus the seed for the first installation):
 
    ```bash
