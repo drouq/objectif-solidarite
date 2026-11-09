@@ -153,6 +153,8 @@ strong { font-weight: 700; }
   box-shadow: 0 1px 0 var(--line);
 }
 .main-nav > .container { border-radius: 0 0 var(--radius) var(--radius); box-shadow: var(--shadow-panel); }
+/* No published page in the menu yet: the brand row is the whole panel. */
+.header-inner:last-child { border-radius: var(--radius); box-shadow: var(--shadow-panel); }
 
 .brand {
   display: flex;
@@ -499,7 +501,7 @@ strong { font-weight: 700; }
 
 /* Phones and small tablets: panels run edge to edge, figures stack. */
 @media (max-width: 47.99rem) {
-  .header-inner, .main-nav > .container { border-radius: 0; }
+  .header-inner, .header-inner:last-child, .main-nav > .container { border-radius: 0; }
   .figures-list li + li { border-left: 0; border-top: 1px solid var(--line); }
   .support > .container { border-radius: 0; padding: 2rem var(--gutter); }
 }
