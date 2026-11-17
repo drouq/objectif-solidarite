@@ -552,6 +552,10 @@ Config::override(['base_url' => 'https://test.example.org']);
 check('a test. address is a test site (kept out of search engines)', Config::isTestSite());
 Config::override(['base_url' => 'https://example.org']);
 check('the real address is not a test site', !Config::isTestSite());
+check('www. and test. send visitors to the real address', Config::isAliasHost('www.example.org') && Config::isAliasHost('TEST.example.org:443'));
+check('the real address and other hosts are not redirected', !Config::isAliasHost('example.org') && !Config::isAliasHost('test.other.org'));
+Config::override(['base_url' => 'https://test.example.org']);
+check('before go-live, the test address is not redirected', !Config::isAliasHost('test.example.org'));
 Config::override(['base_url' => 'http://localhost:8000']);
 check('image cannot replace a video', throwsUserError(function () use ($work, $video) {
     Media::store($work . '/new.jpg', 'x.jpg', 'test', (int) $video['id']);

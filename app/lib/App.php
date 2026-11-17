@@ -45,10 +45,8 @@ final class App
             // Always run migrations: they do nothing when the database is up to date.
             Migrations::run();
 
-            // www.example.org -> example.org (one address for visitors, search engines and Google sign-in).
-            $baseHost = strtolower((string) parse_url((string) Config::get('base_url'), PHP_URL_HOST));
-            $requestHost = strtolower((string) preg_replace('/:\d+$/', '', Http::host()));
-            if (Config::isProduction() && $baseHost !== '' && $requestHost === 'www.' . $baseHost) {
+            // www.example.org and test.example.org -> example.org (one address for visitors, search engines and Google sign-in).
+            if (Config::isProduction() && Config::isAliasHost(Http::host())) {
                 Http::redirect(Config::baseUrl() . (string) ($_SERVER['REQUEST_URI'] ?? '/'), 301);
             }
 

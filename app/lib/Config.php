@@ -137,6 +137,17 @@ final class Config
         return starts_with($host, 'test.');
     }
 
+    /**
+     * Other addresses that serve the same folder and must send visitors to base_url:
+     * "www." and, after go-live, the old "test." address (kept in OVH because it holds the Git link).
+     */
+    public static function isAliasHost(string $host): bool
+    {
+        $base = strtolower((string) parse_url((string) self::get('base_url'), PHP_URL_HOST));
+        $host = strtolower((string) preg_replace('/:\d+$/', '', $host));
+        return $base !== '' && ($host === 'www.' . $base || $host === 'test.' . $base);
+    }
+
     public static function maxBytes(string $kind): int
     {
         $mb = $kind === 'pdf' ? self::get('max_pdf_mb') : ($kind === 'video' ? self::get('max_video_mb') : self::get('max_image_mb'));
