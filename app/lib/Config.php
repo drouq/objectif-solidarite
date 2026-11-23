@@ -70,13 +70,16 @@ final class Config
      * Where config.php is. Looked for in this order:
      * 1. next to app/ (FileZilla install, local development);
      * 2. in a sibling folder named "<folder>-private" (Git deployment: e.g. os/ and os-private/),
-     *    so that a Git deployment can never overwrite or delete it.
+     *    so that a Git deployment can never overwrite or delete it;
+     * 3. in a folder "<folder>-private" next to the parent folder, when the code sits inside
+     *    another web folder (e.g. www/os/ with os-private/ outside www/, out of the web's reach).
      */
     public static function locate(string $rootPath): string
     {
         $candidates = [
             $rootPath . '/config.php',
             dirname($rootPath) . '/' . basename($rootPath) . '-private/config.php',
+            dirname($rootPath, 2) . '/' . basename($rootPath) . '-private/config.php',
         ];
         foreach ($candidates as $file) {
             if (is_file($file)) {

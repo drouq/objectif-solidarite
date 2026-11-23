@@ -473,6 +473,9 @@ check('Config::locate finds os-private/config.php for the Git folder "os"', $fou
 file_put_contents($layout . '/os/config.php', '<?php return [];');
 $found = str_replace('\\', '/', Config::locate($layout . '/os'));
 check('a config.php next to app/ wins over os-private', $found === str_replace('\\', '/', $layout) . '/os/config.php', $found);
+@mkdir($layout . '/www/os', 0777, true);
+$found = str_replace('\\', '/', Config::locate($layout . '/www/os'));
+check('code in www/os finds os-private next to www/', $found === str_replace('\\', '/', $layout) . '/os-private/config.php', $found);
 Config::locate($projectRoot); // back to the test setup
 
 // ---------------------------------------------------------------------------

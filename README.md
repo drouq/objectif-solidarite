@@ -233,6 +233,16 @@ Do it at a quiet time: between steps 4 and 9, visitors may briefly see a certifi
 3. **Detach the domain from its current folder.** In **My websites** (formerly the Multisite tab), `objectif-solidarite.org` and `www.objectif-solidarite.org` are attached to the site whose root folder is `www` (seen in November 2026; check, it may be another folder). Expand that site with its arrow, then use the **...** on the **`objectif-solidarite.org` row** (not on the site row) to detach the domain, and the same on the `www.` row. The site row's **...** would try to delete the whole site, including the hosting's built-in address `objectifd.cluster010.ovh.net`, and OVH refuses ("can't delete primary domain"). Detaching does not touch the folder's files or the other sites.
 4. **Attach it to `os`.** **Ajouter un domaine ou un sous-domaine** (existing OVHcloud domain): `objectif-solidarite.org`, **Dossier racine** `os`, tick **SSL**, and the **www** sub-domain. With **automatic DNS configuration**, OVH points `@` (and `www`) at the hosting in the zone. If you choose manual configuration, edit the zone yourself: `@` **A** `213.186.33.19`, `@` **AAAA** `2001:41d0:1:1b00:213:186:33:19`, and replace the `www` **CNAME** to Wix by `www` **CNAME** `objectif-solidarite.org.` (or A/AAAA with the same addresses). Leave every other record as it is.
 5. **Git: nothing to do, and keep the `test.` row.** OVH's Git link belongs to the `test.objectif-solidarite.org` row, and both rows serve the same `os` folder, so every push still updates the real site. Never detach the `test.` row: the Git link would go with it. After step 7, visitors on `test.` are sent to the real address automatically, like `www.`.
+
+   **If OVH refuses steps 3 and 4** ("can't delete primary domain", or the root folder is greyed out): `objectif-solidarite.org` is the hosting plan's own domain and cannot leave the `www` website. Then the code goes into `www/os` instead (what was done in November 2026):
+   - Create a website with root folder `www/os` (new, empty) and the domain `test.objectif-solidarite.org`, then **Associate Git** on it (same repository and branch) and put its new webhook URL into GitHub. `os-private` stays where it is, next to `www`: the site finds it there.
+   - At the top of `www/.htaccess` (create it if missing, keep what is there), send only this domain into the subfolder; the other sites in `www/…` never match:
+     ```
+     RewriteEngine On
+     RewriteCond %{HTTP_HOST} ^(www\.)?objectif-solidarite\.org$ [NC]
+     RewriteRule ^(.*)$ os/$1 [L]
+     ```
+   - In the DNS zone, point `@` and `www` at the hosting (step 4's addresses).
 6. **Google client.** In the Google Cloud console, open the client and add the redirect URI `https://objectif-solidarite.org/admin/auth/callback`. Keep the test one for now.
 7. **config.php.** Change `'base_url' => 'https://objectif-solidarite.org',` and upload `config.php` again into `os-private/`.
 8. **Wait for DNS.** Check with `nslookup objectif-solidarite.org 8.8.8.8`: it must show `213.186.33.19`. Usually minutes, at most a few hours (the zone's TTL).
