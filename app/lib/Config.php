@@ -142,13 +142,18 @@ final class Config
 
     /**
      * Other addresses that serve the same folder and must send visitors to base_url:
-     * "www." and, after go-live, the old "test." address (kept in OVH because it holds the Git link).
+     * the domain with or without "www." (whichever base_url does not use) and, after go-live,
+     * the old "test." address (kept in OVH because it holds the Git link).
      */
     public static function isAliasHost(string $host): bool
     {
         $base = strtolower((string) parse_url((string) self::get('base_url'), PHP_URL_HOST));
         $host = strtolower((string) preg_replace('/:\d+$/', '', $host));
-        return $base !== '' && ($host === 'www.' . $base || $host === 'test.' . $base);
+        if ($base === '' || $host === $base) {
+            return false;
+        }
+        $bare = starts_with($base, 'www.') ? substr($base, 4) : $base;
+        return in_array($host, [$bare, 'www.' . $bare, 'test.' . $bare], true);
     }
 
     public static function maxBytes(string $kind): int

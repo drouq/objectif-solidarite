@@ -244,7 +244,7 @@ Do it at a quiet time: between steps 4 and 9, visitors may briefly see a certifi
      ```
    - In the DNS zone, point `@` and `www` at the hosting (step 4's addresses).
 6. **Google client.** In the Google Cloud console, open the client and add the redirect URI `https://objectif-solidarite.org/admin/auth/callback`. Keep the test one for now.
-7. **config.php.** Change `'base_url' => 'https://objectif-solidarite.org',` and upload `config.php` again into `os-private/`.
+7. **config.php.** Change `'base_url' => 'https://objectif-solidarite.org',` (or the `www.` address: the other one and `test.` then redirect to it; the Google redirect URI must use the same address) and upload `config.php` again into `os-private/`.
 8. **Wait for DNS.** Check with `nslookup objectif-solidarite.org 8.8.8.8`: it must show `213.186.33.19`. Usually minutes, at most a few hours (the zone's TTL).
 9. **SSL.** Wait until `https://objectif-solidarite.org` opens without a warning (Multisite: the SSL column says active). Then visitors on `www.` are sent to the bare address automatically.
 10. **Check**, on the real address: the home page, a project page, `/mafé` and `/contact-8` (redirects), `/sitemap.xml`, `/robots.txt`, and signing in at `/admin`.
