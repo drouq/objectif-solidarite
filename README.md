@@ -3,7 +3,7 @@
 The website of the association Objectif Solidarité (Montpellier), with a simple admin area. Editors sign in with Google and edit pages without touching code.
 It runs on OVH shared hosting (PHP + SQLite). It is deployed from GitHub: OVH copies the code each time it changes on GitHub.
 
-- Public site: `https://objectif-solidarite.org` (staging first: `https://test.objectif-solidarite.org`)
+- Public site: `https://www.objectif-solidarite.org` (live since 24 November 2026; the address without `www.` and `test.objectif-solidarite.org` redirect to it)
 - Admin area: `/admin` on the same address
 
 Contents
@@ -12,7 +12,7 @@ Contents
 2. [Staging: first installation on test.objectif-solidarite.org](#2-staging-first-installation-on-testobjectif-solidariteorg)
 3. [Première mise en ligne du contenu (seed upload)](#3-première-mise-en-ligne-du-contenu-seed-upload)
 4. [Google sign-in setup](#4-google-sign-in-setup)
-5. [Go-live on objectif-solidarite.org](#5-go-live-on-objectif-solidariteorg)
+5. [Go-live (done on 24 November 2026)](#5-go-live-done-on-24-november-2026)
 6. [Updating the site later](#6-updating-the-site-later)
 7. [Rolling back](#7-rolling-back)
 8. [Backups and restoring](#8-backups-and-restoring)
@@ -24,23 +24,46 @@ Contents
 
 ## 1. How the site is laid out on OVH
 
-Two folders at the top of your OVH FTP space:
+Live since 24 November 2026 on `https://www.objectif-solidarite.org`. Folders at the top of the OVH FTP space (`/home/objectifd`):
 
 ```
-os/                <- the Git folder. OVH fills it from GitHub. The domain points here.
+os/                <- the Git folder. OVH fills it from GitHub on every push.
   .htaccess        <- sends every visitor into public/ (nothing else is reachable)
   app/             <- the program
   public/          <- what visitors see: index.php, styles, images
   ...              <- tests, README... (in the repository, never served)
 os-private/        <- created by you once, by FTP. Git never touches it.
-  config.php       <- your real settings and secrets
+  config.php       <- your real settings and secrets (base_url is the live address)
   data/            <- database, original images, sessions, logs
-  media/           <- uploaded images and PDFs
+  media/           <- uploaded images, PDFs and videos
+www/               <- the hosting's main folder (other sites live in sub-folders)
+  .htaccess        <- 4 lines: sends objectif-solidarite.org and www. into os/ (below)
+  os               <- a link (symbolic link) to ../os, not a real folder
 ```
 
-Why two folders: everything that exists only on the server (settings, content, uploads) stays out of the Git folder. A deployment, a forced update or a re-link of Git can never delete it.
+Why it looks like this: `objectif-solidarite.org` is the hosting plan's own (primary) domain. OVH keeps it on the `www` website and refuses to move it to another folder. So the domain stays on `www`, and two small pieces route it to the code:
 
-The site finds `os-private/` on its own: it looks for `config.php` next to `app/`, then in a folder with the same name plus `-private` next to it (`os` → `os-private`).
+- **`www/.htaccess`** (keep it; other sites in `www/…` never match it):
+  ```
+  RewriteEngine On
+  RewriteCond %{REQUEST_URI} !^/os/
+  RewriteCond %{HTTP_HOST} ^(www\.)?objectif-solidarite\.org$ [NC]
+  RewriteRule ^(.*)$ os/$1 [L]
+  ```
+- **`www/os`**, a symbolic link to `../os`. FileZilla cannot create one and OVH closes `ssh` commands, so it was made by a one-off PHP file uploaded into `www/` and opened once in the browser, then deleted: `<?php echo @symlink('../os', __DIR__ . '/os') ? 'OK' : 'ECHEC';`
+
+OVH websites ("My websites" tab of the hosting plan):
+
+| Website | Root folder | Domains | Git |
+| --- | --- | --- | --- |
+| www | `www` | `objectif-solidarite.org`, `www.objectif-solidarite.org`, `objectifd.cluster010.ovh.net` | no |
+| Objectif Solidarité (new) | `os` | `test.objectif-solidarite.org` | **yes**, `main` |
+
+**Never delete the `test.objectif-solidarite.org` website or domain:** OVH's Git link belongs to it. Visitors on `test.` (and on the address without `www.`) are sent to `https://www.objectif-solidarite.org` by the site itself.
+
+Why the private folder is separate: everything that exists only on the server (settings, content, uploads) stays out of the Git folder. A deployment, a forced update or a re-link of Git can never delete it.
+
+The site finds `os-private/` on its own: it looks for `config.php` next to `app/`, then in a folder with the same name plus `-private` next to it (`os` → `os-private`), then next to the parent folder (for code placed in `www/os`).
 
 What is in the repository:
 
@@ -214,48 +237,36 @@ About 30 minutes, with the Google account that will own the setup (yours).
 5. **Audience**: either add each editor's Gmail address under **Test users**, or click **Publish app**. Only the people listed in **Utilisateurs** on the site can get in either way.
 6. **Clients** (or **Credentials** > **Create credentials** > **OAuth client ID**):
    - **Application type**: **Web application**. Name: `Site web`.
-   - **Authorised redirect URIs**, add both:
-     - `https://test.objectif-solidarite.org/admin/auth/callback`
+   - **Authorised redirect URIs**, add:
+     - `https://www.objectif-solidarite.org/admin/auth/callback` (the live address; it must match `base_url`)
+     - `https://test.objectif-solidarite.org/admin/auth/callback` (staging, before go-live)
      - `http://localhost:8000/admin/auth/callback` (testing on your computer)
    - **Create**.
 7. Copy the **Client ID** and **Client secret** into `config.php` (`google_client_id`, `google_client_secret`).
 
-At go-live you add the real address to the same client ([section 5](#5-go-live-on-objectif-solidariteorg)).
+If the site's address ever changes, add the new callback address to the same client first ([section 5](#5-go-live-done-on-24-november-2026)).
 
-## 5. Go-live on objectif-solidarite.org
+## 5. Go-live (done on 24 November 2026)
 
-Only after you have approved the staging site.
+The site went live on `https://www.objectif-solidarite.org`. What was done, in order, for the record and in case it has to be done again on another hosting:
 
-Do it at a quiet time: between steps 4 and 9, visitors may briefly see a certificate warning.
+1. **DNS written down** (screenshot of the zone). Wix used `@` **A** `23.236.62.147` and `www` **CNAME** to `…wixdns.net.`.
+2. **Mail records left alone**: **MX** (`mx1.ovh.net`, `mx2.ovh.net`, `mxb.ovh.net`) and the **TXT** SPF record. Never use **Réinitialiser la zone**.
+3. **Domain routed to the code.** Detaching `objectif-solidarite.org` from the `www` website failed ("can't delete primary domain"), and its root folder cannot be edited. So the layout of [section 1](#1-how-the-site-is-laid-out-on-ovh) was built:
+   - the old `Objectif Solidarité v3` website was deleted; a new website with root folder `os` (emptied first) and the domain `test.objectif-solidarite.org` got **Associate Git** (this repository, `main`) and a new webhook URL in GitHub (**Settings** > **Webhooks**);
+   - `www/os` link and `www/.htaccess` as in section 1. A website whose root folder contains a `/` (such as `www/os`) breaks OVH's control panel ("404 - route not found" on its Git and delete pages): use a top-level folder and a link instead.
+4. **DNS zone, edited by hand**: `@` **A** `213.186.33.19`, `@` **AAAA** `2001:41d0:1:1b00:213:186:33:19`, `www` **CNAME** `objectif-solidarite.org.`. Seen worldwide within minutes.
+5. **SSL**: OVH issued Let's Encrypt certificates for both addresses after the DNS change (**SSL certificates** tab). They reached all of OVH's web servers about 40 minutes later.
+6. **Google client**: redirect URI `https://www.objectif-solidarite.org/admin/auth/callback` added (the address must match `base_url`; the older ones can stay).
+7. **config.php**: `'base_url' => 'https://www.objectif-solidarite.org',`. This lifts the test-site block for search engines, and makes the address without `www.` and `test.` redirect to it.
+8. **Checked**: all 33 pages, redirects (`/mafé` → `/mafe`), `robots.txt`, sitemap, admin sign-in page, and the other sites of the hosting.
 
-1. **Write down the current DNS records.** OVH: **Web Cloud** > **Noms de domaine** > `objectif-solidarite.org` > **Zone DNS**. Take a screenshot. The ones you need to roll back are `@` **A** (Wix: `23.236.62.147` or `185.230.63.107`, `.171`, `.186`) and `www` **CNAME** (Wix: `www33.wixdns.net.` or `cdn3.wixdns.net.`).
-2. **Leave the mail records alone**, now and later: the **MX** records (`mx1.ovh.net`, `mx2.ovh.net`, `mxb.ovh.net`) and the **TXT** SPF record. The association's address is a Gmail address and does not depend on them, but they may be used. Never use **Réinitialiser la zone**.
-3. **Detach the domain from its current folder.** In **My websites** (formerly the Multisite tab), `objectif-solidarite.org` and `www.objectif-solidarite.org` are attached to the site whose root folder is `www` (seen in November 2026; check, it may be another folder). Expand that site with its arrow, then use the **...** on the **`objectif-solidarite.org` row** (not on the site row) to detach the domain, and the same on the `www.` row. The site row's **...** would try to delete the whole site, including the hosting's built-in address `objectifd.cluster010.ovh.net`, and OVH refuses ("can't delete primary domain"). Detaching does not touch the folder's files or the other sites.
-4. **Attach it to `os`.** **Ajouter un domaine ou un sous-domaine** (existing OVHcloud domain): `objectif-solidarite.org`, **Dossier racine** `os`, tick **SSL**, and the **www** sub-domain. With **automatic DNS configuration**, OVH points `@` (and `www`) at the hosting in the zone. If you choose manual configuration, edit the zone yourself: `@` **A** `213.186.33.19`, `@` **AAAA** `2001:41d0:1:1b00:213:186:33:19`, and replace the `www` **CNAME** to Wix by `www` **CNAME** `objectif-solidarite.org.` (or A/AAAA with the same addresses). Leave every other record as it is.
-5. **Git: nothing to do, and keep the `test.` row.** OVH's Git link belongs to the `test.objectif-solidarite.org` row, and both rows serve the same `os` folder, so every push still updates the real site. Never detach the `test.` row: the Git link would go with it. After step 7, visitors on `test.` are sent to the real address automatically, like `www.`.
-
-   **If OVH refuses steps 3 and 4** ("can't delete primary domain", or the root folder is greyed out): `objectif-solidarite.org` is the hosting plan's own domain and cannot leave the `www` website. Then the code goes into `www/os` instead (what was done in November 2026):
-   - Create a website with root folder `www/os` (new, empty) and the domain `test.objectif-solidarite.org`, then **Associate Git** on it (same repository and branch) and put its new webhook URL into GitHub. `os-private` stays where it is, next to `www`: the site finds it there.
-   - At the top of `www/.htaccess` (create it if missing, keep what is there), send only this domain into the subfolder; the other sites in `www/…` never match:
-     ```
-     RewriteEngine On
-     RewriteCond %{HTTP_HOST} ^(www\.)?objectif-solidarite\.org$ [NC]
-     RewriteRule ^(.*)$ os/$1 [L]
-     ```
-   - In the DNS zone, point `@` and `www` at the hosting (step 4's addresses).
-6. **Google client.** In the Google Cloud console, open the client and add the redirect URI `https://objectif-solidarite.org/admin/auth/callback`. Keep the test one for now.
-7. **config.php.** Change `'base_url' => 'https://objectif-solidarite.org',` (or the `www.` address: the other one and `test.` then redirect to it; the Google redirect URI must use the same address) and upload `config.php` again into `os-private/`.
-8. **Wait for DNS.** Check with `nslookup objectif-solidarite.org 8.8.8.8`: it must show `213.186.33.19`. Usually minutes, at most a few hours (the zone's TTL).
-9. **SSL.** Wait until `https://objectif-solidarite.org` opens without a warning (Multisite: the SSL column says active). Then visitors on `www.` are sent to the bare address automatically.
-10. **Check**, on the real address: the home page, a project page, `/mafé` and `/contact-8` (redirects), `/sitemap.xml`, `/robots.txt`, and signing in at `/admin`.
-11. **Search engines.** In Google Search Console, add the property `https://objectif-solidarite.org` and submit `https://objectif-solidarite.org/sitemap.xml`.
-12. **Wix.** Keep the Wix subscription for a few days in case you need to roll back, then cancel it.
-13. **Clean up.** In FileZilla, delete `os-scp` (the hand-uploaded copy from before Git). In the Google client, the test redirect URI can stay: it is harmless.
+Still to do after go-live: add `https://www.objectif-solidarite.org` to Google Search Console and submit its `sitemap.xml`; cancel Wix about a week later; then delete the old top-level folders `os-avant-git` and `os-scp` (never `os`, `os-private`, `www/os` or `www/.htaccess`).
 
 ## 6. Updating the site later
 
 1. Changes are committed and pushed to the `main` branch on GitHub.
-2. The webhook tells OVH, which updates `os/` within a minute or so. Without the webhook (or if it fails): Multisite > the domain line > **...** > **Déployer Git**.
+2. The webhook tells OVH, which updates `os/` within a minute or so. Without the webhook (or if it fails): **My websites** > the website `Objectif Solidarité (new)` (domain `test.objectif-solidarite.org`) > **⋮** > deploy Git.
 3. Open the site once. Database changes (migrations) run on their own on this first visit. They only add things and never delete data.
 
 `os-private/` (settings, content, uploads) is never touched by an update.
@@ -294,7 +305,7 @@ OVH deploys the previous code within a minute. Without OVH Git, send it yourself
 
 **Content was damaged.** For one page: **Pages** > the page > **Historique** > **Restaurer**. For the whole site: restore a backup ([section 8](#8-backups-and-restoring)).
 
-**Go-live went wrong.** In OVH's **Zone DNS**, put back the two records you wrote down in section 5, step 1: `@` **A** to Wix (delete the `@` **AAAA** to OVH) and `www` **CNAME** to Wix. Wix answers again as soon as DNS has updated (minutes to a few hours), as long as the Wix subscription is still active. The staging site keeps working on `test.objectif-solidarite.org` meanwhile.
+**Go-live went wrong.** Only while the Wix subscription is still active: in OVH's **Zone DNS**, put `@` **A** back to `23.236.62.147` (delete the `@` **AAAA**) and the `www` **CNAME** back to the Wix address on the screenshot of section 5, step 1. Wix answers again once DNS has updated (minutes to a few hours). Once Wix is cancelled, there is nothing to roll back to: fix forward.
 
 ## 8. Backups and restoring
 
